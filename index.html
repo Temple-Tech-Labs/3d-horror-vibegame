@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>3d-horror-vibegame</title>
+    <title>Hell-Fart House</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
     <style>
       *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
       html, body {
@@ -15,7 +18,10 @@
       canvas {
         display: block;
         touch-action: none;
+        pointer-events: none;
       }
+
+      /* ── HUD ── */
       #hud {
         position: fixed;
         top: 12px;
@@ -24,15 +30,184 @@
         font-family: sans-serif;
         font-size: 13px;
         font-weight: 400;
-        letter-spacing: 0.03em;
+        letter-spacing: 0.04em;
         pointer-events: none;
         user-select: none;
         z-index: 10;
+        line-height: 1.6;
       }
+      #hud-title {
+        font-variant: small-caps;
+        font-size: 15px;
+        letter-spacing: 0.12em;
+        color: rgba(255, 200, 100, 0.55);
+        text-shadow: 0 0 8px rgba(200,100,0,0.4);
+      }
+      #hud-controls {
+        font-size: 11px;
+        color: rgba(255,255,255,0.3);
+      }
+
+      /* ── Pointer-lock overlay ── */
+      #lock-overlay {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(0,0,0,0.55);
+        z-index: 30;
+        cursor: pointer;
+        color: rgba(255,220,150,0.8);
+        font-family: sans-serif;
+        font-size: 18px;
+        letter-spacing: 0.08em;
+        text-shadow: 0 0 12px rgba(200,100,0,0.6);
+      }
+      #lock-overlay.hidden { display: none; }
+
+      /* ── Opening scroll overlay ── */
+      #scroll-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.88);
+        z-index: 50;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: opacity 0.5s ease;
+      }
+      #scroll-overlay.fade-out { opacity: 0; pointer-events: none; }
+      #scroll-overlay.hidden { display: none; }
+
+      .scroll-paper {
+        background: #e8d4a0;
+        border: 3px solid #5a3e2a;
+        border-radius: 6px;
+        padding: 36px 44px 28px;
+        max-width: 580px;
+        width: 90%;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.8), inset 0 0 30px rgba(90,62,42,0.18);
+        transform: rotate(-1.2deg);
+        position: relative;
+      }
+      .scroll-paper::before {
+        content: '🕯';
+        position: absolute;
+        top: -14px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 28px;
+        filter: drop-shadow(0 0 6px rgba(255,136,71,0.7));
+      }
+
+      .scroll-game-title {
+        text-align: center;
+        font-family: Georgia, 'Cormorant Garamond', serif;
+        font-size: 26px;
+        font-weight: bold;
+        color: #2a1a08;
+        letter-spacing: 0.1em;
+        margin-bottom: 18px;
+        text-shadow: 2px 2px 4px rgba(90,62,42,0.4);
+      }
+
+      .scroll-body {
+        font-family: 'Cormorant Garamond', Georgia, serif;
+        font-size: 16px;
+        line-height: 1.7;
+        color: #3a2510;
+        font-style: italic;
+      }
+
+      .scroll-begin {
+        display: block;
+        margin-top: 22px;
+        text-align: center;
+        font-family: sans-serif;
+        font-size: 13px;
+        font-style: normal;
+        color: rgba(90,62,42,0.7);
+        letter-spacing: 0.1em;
+        animation: pulse 1.8s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
+      }
+
+      /* ── Mobile touch buttons ── */
+      #mobile-buttons {
+        position: fixed;
+        bottom: 24px;
+        right: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        z-index: 20;
+      }
+      .mob-btn {
+        width: 64px;
+        height: 56px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.22);
+        border-radius: 10px;
+        color: rgba(255,255,255,0.8);
+        font-size: 11px;
+        font-family: sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        user-select: none;
+        -webkit-user-select: none;
+        cursor: pointer;
+        touch-action: none;
+      }
+      .mob-btn span.icon { font-size: 20px; line-height: 1; }
+      .mob-btn.active { background: rgba(255,200,80,0.25); border-color: rgba(255,200,80,0.5); }
     </style>
-    <script type="module" crossorigin src="/3d-horror-vibegame/assets/index-DiB_hZvu.js"></script>
+    <script type="module" crossorigin src="/3d-horror-vibegame/assets/index-D1e4wC-7.js"></script>
   </head>
   <body>
-    <div id="hud">3d-horror-vibegame — v0.1 skeleton</div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="hud-title">HELL-FART HOUSE</div>
+      <div>Candles lit: 0 / 8</div>
+      <div id="hud-controls">Sprint: SHIFT (hold)&nbsp;&nbsp;•&nbsp;&nbsp;Lantern: F&nbsp;&nbsp;•&nbsp;&nbsp;Interact: E</div>
+    </div>
+
+    <!-- Pointer-lock click overlay (desktop only, shown when unlocked) -->
+    <div id="lock-overlay" class="hidden">Click to look around</div>
+
+    <!-- Opening scroll overlay -->
+    <div id="scroll-overlay">
+      <div class="scroll-paper">
+        <div class="scroll-game-title">HELL-FART HOUSE</div>
+        <div class="scroll-body">
+          "Dreaded visitor, who fell in the trap of the 'Cloud Candies', worry be not, as there is still a chance to violently lift the Beanie's fart-curse. Find the 8 Magic-Methane-Candles hiding amongst the 4 floors of the Mansion while avoiding being caught by the restless souls of the Beanie Family. Take this enchanted lantern. It is the only item that can lit the Magic-Methane-Candles. Also, the lantern can help you in stopping a Beanie member for a while, but beware, because they will be angered to fart-high rage. So, be wary and lift the fart-curse.<br><br>Signed &nbsp;~Anonymous Beanie"
+        </div>
+        <span class="scroll-begin">— Press any key or tap to begin —</span>
+      </div>
+    </div>
+
+    <!-- Mobile action buttons (shown only on touch devices) -->
+    <div id="mobile-buttons" style="display:none">
+      <div class="mob-btn" id="btn-lantern">
+        <span class="icon">🔦</span>
+        <span>LANTERN</span>
+      </div>
+      <div class="mob-btn" id="btn-interact">
+        <span class="icon">✋</span>
+        <span>INTERACT</span>
+      </div>
+      <div class="mob-btn" id="btn-sprint">
+        <span class="icon">🏃</span>
+        <span>SPRINT</span>
+      </div>
+    </div>
+
   </body>
 </html>
