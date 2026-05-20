@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+import { Timer } from 'three';
 import nipplejs from 'nipplejs';
 
 // ─── Device detection ────────────────────────────────────────────────────────
@@ -42,13 +43,19 @@ scene.add(ground);
 // ─── Decoration cubes (test bed) ─────────────────────────────────────────────
 
 const decorations = [
-  { pos: [4, 0.5, -3],  color: 0x6b1414 },
-  { pos: [-5, 0.5, 2],  color: 0x2a5c58 },
-  { pos: [2, 0.5, 5],   color: 0xc46a1a },
+  { pos: [4, 0.5, -3],  color: 0x6b1414, emissive: 0x3a0a0a },
+  { pos: [-5, 0.5, 2],  color: 0x2a5c58, emissive: 0x0a3a3a },
+  { pos: [2, 0.5, 5],   color: 0xc46a1a, emissive: 0x3a2a0a },
 ];
-decorations.forEach(({ pos, color }) => {
+decorations.forEach(({ pos, color, emissive }) => {
   const geo = new THREE.BoxGeometry(1, 1, 1);
-  const mat = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.05 });
+  const mat = new THREE.MeshStandardMaterial({
+    color,
+    emissive,
+    emissiveIntensity: 0.4,
+    roughness: 0.8,
+    metalness: 0.05,
+  });
   const cube = new THREE.Mesh(geo, mat);
   cube.position.set(...pos);
   cube.castShadow = true;
@@ -75,7 +82,7 @@ const handMat = new THREE.MeshStandardMaterial({ color: 0x2d7a2d, roughness: 0.8
 function makeHand() {
   const geo = new THREE.SphereGeometry(0.1, 10, 8);
   const mesh = new THREE.Mesh(geo, handMat);
-  mesh.scale.set(1.5, 1.2, 1.8); // flatten to hand-pod shape
+  mesh.scale.set(1.5, 1.2, 1.8);
   return mesh;
 }
 
@@ -104,8 +111,7 @@ const lockOverlay = document.getElementById('lock-overlay');
 
 if (!isTouchDevice) {
   controls = new PointerLockControls(camera, renderer.domElement);
-  // PointerLockControls moves the camera; we need to keep playerObj in sync.
-  // We detach camera from playerObj and let PLC own it, then sync playerObj position.
+  // PLC owns the camera — detach from playerObj so PLC can control it.
   playerObj.remove(camera);
   scene.add(camera);
   camera.position.set(0, 1.6, 0);
@@ -116,19 +122,26 @@ if (!isTouchDevice) {
   });
 
   renderer.domElement.style.pointerEvents = 'auto';
-
   lockOverlay.addEventListener('click', () => { if (gameStarted) controls.lock(); });
   renderer.domElement.addEventListener('click', () => { if (gameStarted) controls.lock(); });
 
   window.addEventListener('keydown', (e) => {
     switch (e.code) {
-      case 'KeyW': case 'ArrowUp':    keys.forward  = true;  break;
-      case 'KeyS': case 'ArrowDown':  keys.backward = true;  break;
-      case 'KeyA': case 'ArrowLeft':  keys.left     = true;  break;
-      case 'KeyD': case 'ArrowRight': keys.right    = true;  break;
-      case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break;
+      case 'KeyW': case 'ArrowUp':
+        console.log('Move:', e.code);
+        keys.forward  = true;  break;
+      case 'KeyS': case 'ArrowDown':
+        console.log('Move:', e.code);
+        keys.backward = true;  break;
+      case 'KeyA': case 'ArrowLeft':
+        console.log('Move:', e.code);
+        keys.left     = true;  break;
+      case 'KeyD': case 'ArrowRight':
+        console.log('Move:', e.code);
+        keys.right    = true;  break;
+      case 'ShiftLeft': case 'ShiftRight': keys.sprint = true;  break;
       case 'KeyF': console.log('Lantern toggle'); break;
-      case 'KeyE': console.log('Interact'); break;
+      case 'KeyE': console.log('Interact');       break;
     }
   });
   window.addEventListener('keyup', (e) => {
@@ -141,7 +154,6 @@ if (!isTouchDevice) {
     }
   });
 
-  // Hide mobile controls hint on desktop
   document.getElementById('hud-controls').style.display = '';
 }
 
@@ -151,8 +163,7 @@ let lookPointerId = null;
 let lookLastX = 0;
 let lookLastY = 0;
 const LOOK_SENSITIVITY = 0.003;
-// Euler for manual yaw/pitch on mobile
-const mobileYaw = { value: 0 };
+const mobileYaw   = { value: 0 };
 const mobilePitch = { value: 0 };
 
 if (isTouchDevice) {
@@ -179,12 +190,8 @@ if (isTouchDevice) {
       mobilePitch.value  = Math.max(-Math.PI / 2.2, Math.min(Math.PI / 2.2, mobilePitch.value));
     }
   });
-  renderer.domElement.addEventListener('pointerup', (e) => {
-    if (e.pointerId === lookPointerId) lookPointerId = null;
-  });
-  renderer.domElement.addEventListener('pointercancel', (e) => {
-    if (e.pointerId === lookPointerId) lookPointerId = null;
-  });
+  renderer.domElement.addEventListener('pointerup',     (e) => { if (e.pointerId === lookPointerId) lookPointerId = null; });
+  renderer.domElement.addEventListener('pointercancel', (e) => { if (e.pointerId === lookPointerId) lookPointerId = null; });
 
   // Nipplejs joystick — left half
   const zone = document.createElement('div');
@@ -232,17 +239,16 @@ function dismissScroll() {
 
   if (!isTouchDevice) {
     lockOverlay.classList.remove('hidden');
-    // Small delay so the overlay fade finishes before asking for pointer lock
     setTimeout(() => { controls.lock(); }, 300);
   }
 }
 
-window.addEventListener('keydown', (e) => { if (!gameStarted) dismissScroll(); }, { once: false });
+window.addEventListener('keydown', () => { if (!gameStarted) dismissScroll(); });
 scrollOverlay.addEventListener('pointerdown', () => { dismissScroll(); });
 
-// ─── Clock ───────────────────────────────────────────────────────────────────
+// ─── Timer ───────────────────────────────────────────────────────────────────
 
-const clock = new THREE.Clock();
+const timer = new Timer();
 
 // ─── Resize ──────────────────────────────────────────────────────────────────
 
@@ -252,19 +258,19 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
-// ─── Movement helpers ─────────────────────────────────────────────────────────
+// ─── Movement helpers (mobile only) ──────────────────────────────────────────
 
-const moveDir = new THREE.Vector3();
-const forward = new THREE.Vector3();
-const right   = new THREE.Vector3();
-const up      = new THREE.Vector3(0, 1, 0);
+const _fwd   = new THREE.Vector3();
+const _right = new THREE.Vector3();
+const _up    = new THREE.Vector3(0, 1, 0);
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
 
 function animate() {
   requestAnimationFrame(animate);
-  const dt = clock.getDelta();
-  const t  = clock.elapsedTime;
+  timer.update();
+  const dt = timer.getDelta();
+  const t  = timer.getElapsed();
 
   // ── Hands idle bob ──
   const bob = Math.sin(t * Math.PI * 2) * 0.02;
@@ -280,50 +286,32 @@ function animate() {
     );
   }
 
-  // ── Compute movement ──
-  const speed = (isTouchDevice ? mobileSprint : keys.sprint) ? WALK_SPEED * SPRINT_MULT : WALK_SPEED;
-  moveDir.set(0, 0, 0);
+  // ── Movement ──
+  const speed = (isTouchDevice ? mobileSprint : keys.sprint)
+    ? WALK_SPEED * SPRINT_MULT
+    : WALK_SPEED;
 
   if (isTouchDevice) {
-    moveDir.x =  joystick.x;
-    moveDir.z = -joystick.y;
-  } else {
-    if (keys.forward)  moveDir.z -= 1;
-    if (keys.backward) moveDir.z += 1;
-    if (keys.left)     moveDir.x -= 1;
-    if (keys.right)    moveDir.x += 1;
-  }
-
-  if (moveDir.lengthSq() > 0.001) {
-    moveDir.normalize();
-
-    if (isTouchDevice) {
-      // Build forward/right from mobile yaw
-      forward.set(Math.sin(mobileYaw.value), 0, Math.cos(mobileYaw.value)).negate();
-      right.crossVectors(forward, up).normalize();
-      const worldMove = forward.clone().multiplyScalar(-moveDir.z)
-        .add(right.clone().multiplyScalar(moveDir.x));
-      playerObj.position.addScaledVector(worldMove, speed * dt);
-      // Sync camera to player position + head height
-      camera.position.set(
-        playerObj.position.x,
-        playerObj.position.y + 1.6,
-        playerObj.position.z
-      );
-    } else if (controls && controls.isLocked) {
-      // PointerLockControls moves camera; derive world move from camera direction
-      camera.getWorldDirection(forward);
-      forward.y = 0;
-      forward.normalize();
-      right.crossVectors(forward, up).normalize();
-      const worldMove = forward.clone().multiplyScalar(-moveDir.z)
-        .add(right.clone().multiplyScalar(moveDir.x));
-      camera.position.addScaledVector(worldMove, speed * dt);
-      // Keep player grounded
-      camera.position.y = 1.6;
-      // Sync playerObj for future use
-      playerObj.position.set(camera.position.x, 0, camera.position.z);
+    // Mobile: manual yaw-relative movement
+    const jx = joystick.x;
+    const jy = joystick.y;
+    if (Math.abs(jx) > 0.05 || Math.abs(jy) > 0.05) {
+      _fwd.set(Math.sin(mobileYaw.value), 0, Math.cos(mobileYaw.value)).negate();
+      _right.crossVectors(_fwd, _up).normalize();
+      playerObj.position.addScaledVector(_fwd,   jy * speed * dt);
+      playerObj.position.addScaledVector(_right, jx * speed * dt);
+      camera.position.set(playerObj.position.x, playerObj.position.y + 1.6, playerObj.position.z);
     }
+  } else if (controls) {
+    // Desktop: use PointerLockControls built-in movers — works locked OR unlocked.
+    const dist = speed * dt;
+    if (keys.forward)  controls.moveForward( dist);
+    if (keys.backward) controls.moveForward(-dist);
+    if (keys.right)    controls.moveRight(   dist);
+    if (keys.left)     controls.moveRight(  -dist);
+    // Keep camera at head height (moveForward can drift y when looking up/down).
+    camera.position.y = 1.6;
+    playerObj.position.set(camera.position.x, 0, camera.position.z);
   }
 
   renderer.render(scene, camera);
