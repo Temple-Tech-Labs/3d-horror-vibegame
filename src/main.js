@@ -267,15 +267,17 @@ const cabinetMat = new THREE.MeshStandardMaterial({ color: 0x6a4830, roughness: 
 });
 
 // Window on west wall (dusty glass plane)
+// Offset 0.05 units toward kitchen interior to clear wall face at x=-14.85 and prevent Z-fighting
 const winMesh = new THREE.Mesh(
   new THREE.PlaneGeometry(1.5, 1.5),
   new THREE.MeshStandardMaterial({
     color: 0x3a4a5a, roughness: 0.3, metalness: 0,
-    transparent: true, opacity: 0.6
+    transparent: true, opacity: 0.6,
+    polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
   })
 );
 winMesh.rotation.y = Math.PI / 2;
-winMesh.position.set(-14.85, 2, -2);
+winMesh.position.set(-14.80, 2, -2);
 winMesh.castShadow = false;
 winMesh.receiveShadow = false;
 scene.add(winMesh);
@@ -706,8 +708,10 @@ function makeCandle(wx, wy, wz) {
 }
 
 const candles = [
-  makeCandle(-7,  1.55, -0.5),   // kitchen — on raised surface
-  makeCandle(0,   2.2,  -13.5),  // LR fireplace mantle
+  // Verified: candle base Y (1.59 - 0.09 = 1.50) matches counterS top Y (0.75 + 0.75 = 1.50)
+  makeCandle(-11.7, 1.59, 4.7),  // kitchen south counter, 0.3 units from pepper jar
+  // Verified: candle base Y (1.59 - 0.09 = 1.50) matches fireboxMesh top Y (0.75 + 0.75 = 1.50)
+  makeCandle(0.5,   1.59, -14.7), // LR fireplace mantle (top of firebox, near front edge)
 ];
 
 // ─── HUD room element ─────────────────────────────────────────────────────────
