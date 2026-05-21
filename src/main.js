@@ -34,16 +34,22 @@ fireplaceLight.position.set(0, 0.5, -14.5);
 scene.add(fireplaceLight);
 
 // Kitchen moonlight through west window
-const moonLight = new THREE.SpotLight(0x5a6a8a, 1.5);
+const moonLight = new THREE.SpotLight(0x7a8aaa, 3.0);
 moonLight.angle = 0.55;
 moonLight.penumbra = 0.45;
-moonLight.position.set(-20, 3, -2);
-moonLight.target.position.set(-11, 0, -2);
+moonLight.distance = 30;
+moonLight.decay = 1;
+moonLight.castShadow = false;
+moonLight.position.set(-20, 4, -2);
+moonLight.target.position.set(-7, 0, -2);
 scene.add(moonLight);
 scene.add(moonLight.target);
 
-// Kitchen residual oil-lamp glow (ambient fill, keeps moonlight dominant)
-const kitchenFillLight = new THREE.PointLight(0xff8847, 0.4, 5);
+const spotHelper = new THREE.SpotLightHelper(moonLight);
+scene.add(spotHelper);
+
+// Kitchen residual oil-lamp glow (primary fill — moonlight is dramatic accent)
+const kitchenFillLight = new THREE.PointLight(0xff8847, 1.2, 8);
 kitchenFillLight.position.set(-7, 3, -2);
 scene.add(kitchenFillLight);
 
@@ -273,6 +279,8 @@ const winMesh = new THREE.Mesh(
 );
 winMesh.rotation.y = Math.PI / 2;
 winMesh.position.set(-14.85, 2, -2);
+winMesh.castShadow = false;
+winMesh.receiveShadow = false;
 scene.add(winMesh);
 
 // Dusty jar on south counter
