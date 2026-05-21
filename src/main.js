@@ -449,8 +449,57 @@ leftHand.position.set(-0.35, -0.4, -0.6);
 camera.add(leftHand);
 
 const rightHand = makeHand();
-rightHand.position.set(0.35, -0.4, -0.6);
+rightHand.position.set(0.28, -0.42, -0.55);
 camera.add(rightHand);
+
+// ─── Flashlight model (camera child) ─────────────────────────────────────────
+const flashlightGroup = new THREE.Group();
+flashlightGroup.position.set(0.30, -0.35, -0.45);
+flashlightGroup.rotation.x = Math.PI / 36;
+
+const flashBodyMat = new THREE.MeshStandardMaterial({ color: 0x2a2a2a, roughness: 0.6, metalness: 0.4 });
+const flashBody = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.05, 0.28, 8), flashBodyMat);
+flashBody.rotation.x = Math.PI / 2;
+flashlightGroup.add(flashBody);
+
+const flashBezel = new THREE.Mesh(
+  new THREE.CylinderGeometry(0.07, 0.04, 0.06, 8),
+  new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.5, metalness: 0.5 })
+);
+flashBezel.rotation.x = Math.PI / 2;
+flashBezel.position.z = -0.17;
+flashlightGroup.add(flashBezel);
+
+const ringMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.7, metalness: 0.3 });
+[-0.04, 0.04].forEach(zo => {
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.05, 0.008, 6, 12), ringMat);
+  ring.rotation.x = Math.PI / 2;
+  ring.position.z = zo;
+  flashlightGroup.add(ring);
+});
+
+const lensMat = new THREE.MeshStandardMaterial({
+  color: 0xfff4d6, emissive: 0xfff4d6, emissiveIntensity: 0.0,
+  roughness: 0.1, metalness: 0
+});
+const lensMesh = new THREE.Mesh(new THREE.CircleGeometry(0.055, 12), lensMat);
+lensMesh.position.z = -0.20;
+flashlightGroup.add(lensMesh);
+camera.add(flashlightGroup);
+
+const flashSpot = new THREE.SpotLight(0xfff4d6, 0);
+flashSpot.angle = 0.5;
+flashSpot.penumbra = 0.4;
+flashSpot.distance = 15;
+flashSpot.decay = 1;
+flashSpot.castShadow = false;
+flashSpot.position.set(0.30, -0.35, -0.45);
+camera.add(flashSpot);
+
+const flashTarget = new THREE.Object3D();
+flashTarget.position.set(0.30, -0.35, -10);
+camera.add(flashTarget);
+flashSpot.target = flashTarget;
 
 // ─── Shared movement state ────────────────────────────────────────────────────
 const moveState = { forward: 0, right: 0 };
@@ -461,8 +510,10 @@ function syncMoveStateFromKeys() {
   moveState.right   = (keys.right   ? 1 : 0) - (keys.left     ? 1 : 0);
 }
 
-let mobileSprint = false;
-let gameStarted  = false;
+let mobileSprint  = false;
+let gameStarted   = false;
+let flashlightOn  = false;
+let candleCount   = 0;
 
 const WALK_SPEED  = 4;
 const SPRINT_MULT = 1.6;
@@ -493,8 +544,8 @@ if (!isTouchDevice) {
       case 'KeyA': case 'ArrowLeft':  keys.left     = true;  break;
       case 'KeyD': case 'ArrowRight': keys.right    = true;  break;
       case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break;
-      case 'KeyF': console.log('Lantern toggle'); break;
-      case 'KeyE': console.log('Interact');       break;
+      case 'KeyF': toggleFlashlight(); break;
+      case 'KeyE': tryInteract();     break;
     }
     syncMoveStateFromKeys();
   });
@@ -582,9 +633,9 @@ if (isTouchDevice) {
   const btnInteract = document.getElementById('btn-interact');
   const btnSprint   = document.getElementById('btn-sprint');
 
-  btnLantern.addEventListener('pointerdown',  (e) => { e.stopPropagation(); console.log('Lantern toggle'); btnLantern.classList.add('active'); });
+  btnLantern.addEventListener('pointerdown',  (e) => { e.stopPropagation(); toggleFlashlight(); btnLantern.classList.add('active'); });
   btnLantern.addEventListener('pointerup',    (e) => { e.stopPropagation(); btnLantern.classList.remove('active'); });
-  btnInteract.addEventListener('pointerdown', (e) => { e.stopPropagation(); console.log('Interact'); btnInteract.classList.add('active'); });
+  btnInteract.addEventListener('pointerdown', (e) => { e.stopPropagation(); tryInteract(); btnInteract.classList.add('active'); });
   btnInteract.addEventListener('pointerup',   (e) => { e.stopPropagation(); btnInteract.classList.remove('active'); });
   btnSprint.addEventListener('pointerdown',   (e) => { e.stopPropagation(); mobileSprint = true;  btnSprint.classList.add('active'); });
   btnSprint.addEventListener('pointerup',     (e) => { e.stopPropagation(); mobileSprint = false; btnSprint.classList.remove('active'); });
@@ -618,8 +669,50 @@ window.addEventListener('resize', () => {
   renderer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// ─── Magic-Methane-Candles ────────────────────────────────────────────────────
+function makeCandle(wx, wy, wz) {
+  const group = new THREE.Group();
+  group.position.set(wx, wy, wz);
+
+  group.userData.waxMat = new THREE.MeshStandardMaterial({
+    color: 0xf0e8c0, emissive: 0xf0e8c0, emissiveIntensity: 0.0,
+    roughness: 0.9, metalness: 0
+  });
+  const waxMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.18, 8), group.userData.waxMat);
+  group.add(waxMesh);
+
+  const wickMesh = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.005, 0.005, 0.04, 4),
+    new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 1, metalness: 0 })
+  );
+  wickMesh.position.y = 0.11;
+  group.add(wickMesh);
+
+  group.userData.flameMesh = new THREE.Mesh(
+    new THREE.SphereGeometry(0.025, 6, 6),
+    new THREE.MeshStandardMaterial({
+      color: 0xff8847, emissive: 0xff8847, emissiveIntensity: 1.5,
+      roughness: 0.4, metalness: 0
+    })
+  );
+  group.userData.flameMesh.scale.set(0.8, 1.4, 0.8);
+  group.userData.flameMesh.position.y = 0.15;
+  group.userData.flameMesh.visible = false;
+  group.add(group.userData.flameMesh);
+
+  group.userData.lit = false;
+  scene.add(group);
+  return group;
+}
+
+const candles = [
+  makeCandle(-7,  1.55, -0.5),   // kitchen — on raised surface
+  makeCandle(0,   2.2,  -13.5),  // LR fireplace mantle
+];
+
 // ─── HUD room element ─────────────────────────────────────────────────────────
-const hudRoom = document.getElementById('hud-room');
+const hudRoom    = document.getElementById('hud-room');
+const hudCandles = document.getElementById('hud-candles');
 
 function getCurrentRoom(x, z) {
   if (x >= -15 && x <= -5 && z >= -5 && z <= 5)   return 'Kitchen';
@@ -627,11 +720,45 @@ function getCurrentRoom(x, z) {
   return 'Lobby';
 }
 
+// ─── Interaction functions ────────────────────────────────────────────────────
+function toggleFlashlight() {
+  flashlightOn = !flashlightOn;
+  if (!flashlightOn) flashSpot.intensity = 0;
+  lensMat.emissiveIntensity = flashlightOn ? 0.8 : 0.0;
+}
+
+function lightCandle(candle) {
+  candle.userData.lit = true;
+  candle.userData.flameMesh.visible = true;
+  candle.userData.waxMat.emissiveIntensity = 0.3;
+  const glow = new THREE.PointLight(0xff8847, 0.8, 3);
+  glow.position.set(0, 0.2, 0);
+  candle.add(glow);
+}
+
+function tryInteract() {
+  if (!flashlightOn) return;
+  const pos = isTouchDevice ? playerObj.position : camera.position;
+  for (const candle of candles) {
+    if (candle.userData.lit) continue;
+    _toCandle.subVectors(candle.position, pos);
+    if (_toCandle.length() > 2.5) continue;
+    _toCandle.normalize();
+    camera.getWorldDirection(_fwd);
+    if (_fwd.dot(_toCandle) < 0.5) continue;
+    lightCandle(candle);
+    candleCount++;
+    hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
+    break;
+  }
+}
+
 // ─── Reusable vectors ─────────────────────────────────────────────────────────
 const _fwd        = new THREE.Vector3();
 const _right      = new THREE.Vector3();
 const _up         = new THREE.Vector3(0, 1, 0);
 const _testSphere = new THREE.Sphere(new THREE.Vector3(), 0.3);
+const _toCandle   = new THREE.Vector3();
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
 function animate() {
@@ -642,8 +769,24 @@ function animate() {
 
   // Hands idle bob
   const bob = Math.sin(t * Math.PI * 2) * 0.02;
-  leftHand.position.y  = -0.4 + bob;
-  rightHand.position.y = -0.4 + bob;
+  leftHand.position.y  = -0.4  + bob;
+  rightHand.position.y = -0.42 + bob;
+
+  // Flashlight bob + sway
+  flashlightGroup.position.y = -0.35 + Math.sin(t * Math.PI * 2) * 0.005;
+  flashlightGroup.rotation.z = Math.sin(t * Math.PI) * 0.01;
+
+  // Flashlight flicker
+  if (flashlightOn) {
+    flashSpot.intensity = 2.0 + Math.sin(t * 7) * 0.08 + Math.sin(t * 13) * 0.04;
+  }
+
+  // Candle flame flicker
+  for (const candle of candles) {
+    if (!candle.userData.lit) continue;
+    candle.userData.flameMesh.rotation.y += 0.05;
+    candle.userData.flameMesh.scale.y = 1.4 + Math.sin(t * 11 + candle.position.x) * 0.1;
+  }
 
   if (!gameStarted) { renderer.render(scene, camera); return; }
 
