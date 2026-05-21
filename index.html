@@ -167,8 +167,27 @@
       }
       .mob-btn span.icon { font-size: 20px; line-height: 1; }
       .mob-btn.active { background: rgba(255,200,80,0.25); border-color: rgba(255,200,80,0.5); }
+
+      /* ── Interact prompt ── */
+      #interact-prompt {
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(0, 0, 0, 0.65);
+        color: rgba(255, 255, 255, 0.92);
+        font-family: sans-serif;
+        font-size: 16px;
+        padding: 10px 16px;
+        border-radius: 8px;
+        pointer-events: none;
+        user-select: none;
+        z-index: 15;
+        display: none;
+        white-space: nowrap;
+      }
     </style>
-    <script type="module" crossorigin src="/3d-horror-vibegame/assets/index-B6Kz6VHp.js"></script>
+    <script type="module" crossorigin src="/3d-horror-vibegame/assets/index-CK4JmHAw.js"></script>
   </head>
   <body>
 
@@ -209,6 +228,8 @@
         <span>SPRINT</span>
       </div>
     </div>
+
+    <div id="interact-prompt"></div>
 
   </body>
 </html>
