@@ -57,3 +57,33 @@ Materials: MeshStandardMaterial only. Roughness 0.7–0.9, metalness 0.0–0.1. 
 - Scoped, single-mechanic prompts only
 - Every prompt ends with `npm run deploy`
 - Read LORE.md before starting any future prompt
+
+## Lighting Reference Standard — LOCKED (Prompt #3.3)
+
+These are the canonical lighting baseline values. Every future floor (Purgatory, Heaven, Hell's Labyrinth) MUST start from these and only deviate intentionally:
+
+### Ambient
+- `THREE.AmbientLight` color `#1a0d2e`, intensity **0.25**
+
+### Hemisphere
+- `THREE.HemisphereLight` sky `#2a1a3a`, ground `#1a0d0a`, intensity **0.28**
+
+### Fog
+- `THREE.FogExp2` color `#1a0d2e`, density **0.025**
+
+### Per-room warm fill (orientation light)
+- Place ONE `THREE.PointLight` near room center, color `#ff8847`
+- Intensity **1.0**, distance **12**
+- Height: ~3 units (suggests overhead chandelier)
+
+### Dramatic accent lights (e.g., moonlight, fire, lantern pool)
+- `THREE.SpotLight`: intensity **4.5**, distance **30**, decay **1**, color tinted to context
+- **ALWAYS set explicit target**: `light.target.position.set(...)` and `scene.add(light.target)`
+- Angle 0.55, penumbra 0.45
+- Pair with a flat "light pool decal" mesh on the floor below for visible impact
+
+### Notes
+- Per-instance hue jitter (±0.05) on walls reduces flat-color look
+- Wainscoting seam at y=2.5 in #3d2817 adds vintage texture
+- Per-floor variations should only adjust ambient color tint, not intensity (basement: cooler, Heaven Hall: cooler-bluer moonlight, Purgatory: similar to Limbo)
+- Lantern (Prompt #4) will add a moving point light following the player — its values TBD

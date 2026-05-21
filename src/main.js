@@ -34,7 +34,7 @@ fireplaceLight.position.set(0, 0.5, -14.5);
 scene.add(fireplaceLight);
 
 // Kitchen moonlight through west window
-const moonLight = new THREE.SpotLight(0x7a8aaa, 3.0);
+const moonLight = new THREE.SpotLight(0x7a8aaa, 4.5);
 moonLight.angle = 0.55;
 moonLight.penumbra = 0.45;
 moonLight.distance = 30;
@@ -44,9 +44,6 @@ moonLight.position.set(-20, 4, -2);
 moonLight.target.position.set(-7, 0, -2);
 scene.add(moonLight);
 scene.add(moonLight.target);
-
-const spotHelper = new THREE.SpotLightHelper(moonLight);
-scene.add(spotHelper);
 
 // Kitchen residual oil-lamp glow (primary fill — moonlight is dramatic accent)
 const kitchenFillLight = new THREE.PointLight(0xff8847, 1.2, 8);
@@ -282,6 +279,18 @@ winMesh.position.set(-14.85, 2, -2);
 winMesh.castShadow = false;
 winMesh.receiveShadow = false;
 scene.add(winMesh);
+
+// Moonlight pool decal — visible bluish rectangle on kitchen floor below the spotlight
+const moonPoolMesh = new THREE.Mesh(
+  new THREE.BoxGeometry(1.8, 0.02, 2.2),
+  new THREE.MeshStandardMaterial({
+    color: 0x5a6a8a, emissive: 0x5a6a8a, emissiveIntensity: 0.5,
+    roughness: 0.4, metalness: 0
+  })
+);
+moonPoolMesh.position.set(-7, 0.011, -2);
+moonPoolMesh.rotation.y = Math.PI / 12; // ~15 degrees — angled moonlight rectangle
+scene.add(moonPoolMesh);
 
 // Dusty jar on south counter
 const jarMesh = new THREE.Mesh(
