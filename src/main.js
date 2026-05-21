@@ -472,7 +472,11 @@ function makeCloset(px, py, pz, rotY) {
 
   // Interior slats — visible only when Lia is hiding inside
   // World y 0.3→1.8 = local y -0.8→0.7, 6 evenly spaced (step 0.3)
-  const slatMat = new THREE.MeshStandardMaterial({ color: 0x2a1408, roughness: 0.8, metalness: 0.05 });
+  // Slight emissive so slats read as dark silhouettes even without flashlight
+  const slatMat = new THREE.MeshStandardMaterial({
+    color: 0x2a1408, emissive: 0x2a1408, emissiveIntensity: 0.18,
+    roughness: 0.8, metalness: 0.05
+  });
   const slats = [];
   for (let i = 0; i < 6; i++) {
     const slat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.05), slatMat);
@@ -483,8 +487,8 @@ function makeCloset(px, py, pz, rotY) {
   }
   group.userData.slats = slats;
 
-  // Interior ambient light — cold purple, seen from inside
-  const intLight = new THREE.PointLight(0x1a0d2e, 0.5, 1.5);
+  // Interior ambient light — cold blue-purple tint, provides enough fill to see hands + slats
+  const intLight = new THREE.PointLight(0x2a1a4a, 0.9, 2.2);
   intLight.position.set(0, 0, -0.1);
   group.add(intLight);
 
@@ -822,28 +826,28 @@ function lightCandle(candle) {
 }
 
 function tryInteract() {
-  // Priority 1: exit closet — no flashlight requirement
+  // Priority 1: exit closet — always works, no flashlight required
   if (hiddenInCloset !== null) { exitCloset(); return; }
-
-  if (!flashlightOn) return;
 
   const pos = isTouchDevice ? playerObj.position : camera.position;
   camera.getWorldDirection(_fwd);
 
-  // Priority 2: light a candle
-  for (const candle of candles) {
-    if (candle.userData.lit) continue;
-    _toCandle.subVectors(candle.position, pos);
-    if (_toCandle.length() > 2.5) continue;
-    _toCandle.normalize();
-    if (_fwd.dot(_toCandle) < 0.5) continue;
-    lightCandle(candle);
-    candleCount++;
-    hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
-    return;
+  // Priority 2: light a candle — requires flashlight
+  if (flashlightOn) {
+    for (const candle of candles) {
+      if (candle.userData.lit) continue;
+      _toCandle.subVectors(candle.position, pos);
+      if (_toCandle.length() > 2.5) continue;
+      _toCandle.normalize();
+      if (_fwd.dot(_toCandle) < 0.5) continue;
+      lightCandle(candle);
+      candleCount++;
+      hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
+      return;
+    }
   }
 
-  // Priority 3: enter a closet
+  // Priority 3: enter a closet — does NOT require flashlight (emergency hide)
   const fwdH = _fwd.clone(); fwdH.y = 0;
   if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
   for (const closet of closets) {
@@ -889,6 +893,8 @@ function enterCloset(closet) {
 
 function exitCloset() {
   const closet = hiddenInCloset;
+  hiddenInCloset = null;          // clear FIRST so same-frame checks see "not hidden"
+  playerObj.userData.isHidden = false;
 
   const doorDir = new THREE.Vector3(0, 0, 1)
     .applyEuler(new THREE.Euler(0, closet.rotation.y, 0));
@@ -897,15 +903,12 @@ function exitCloset() {
   camera.position.set(exitPos.x, 1.6, exitPos.z);
   playerObj.position.set(exitPos.x, 0, exitPos.z);
 
-  camera.rotation.x = closet.userData.prevCameraRotX;
+  camera.rotation.x = 0;         // clear pressed-against-door tilt completely
   movementLocked = false;
 
   closet.userData.doorLMat.transparent = false; closet.userData.doorLMat.opacity = 1.0;
   closet.userData.doorRMat.transparent = false; closet.userData.doorRMat.opacity = 1.0;
   for (const s of closet.userData.slats) s.visible = false;
-
-  hiddenInCloset = null;
-  playerObj.userData.isHidden = false;
 }
 
 // ─── Reusable vectors ─────────────────────────────────────────────────────────
@@ -1021,12 +1024,12 @@ function animate() {
     for (const closet of closets) {
       _toCloset.subVectors(closet.position, promptPos); _toCloset.y = 0;
       const dist = _toCloset.length();
-      const inRange = dist < 2.5 && flashlightOn;
+      // Distance + direction check — no flashlight requirement (closet is always enterable)
+      const inRange = dist < 2.5;
 
-      if (inRange) {
-        const dir = _toCloset.clone().normalize();
-        if (fwdH.dot(dir) > 0.3 && !promptShown) {
-          // Check if a candle has priority (closer + facing)
+      if (inRange && fwdH.dot(_toCloset.clone().normalize()) > 0.3) {
+        // Visual telegraph: only when flashlight is ON and no candle has priority
+        if (flashlightOn && !promptShown) {
           let candlePriority = false;
           for (const candle of candles) {
             if (candle.userData.lit) continue;
@@ -1037,10 +1040,14 @@ function animate() {
             interactPrompt.textContent = 'Press E to hide';
             interactPrompt.style.display = 'block';
             promptShown = true;
+            closet.userData.doorLMat.emissive.setHex(0x5a6a8a); closet.userData.doorLMat.emissiveIntensity = 0.35;
+            closet.userData.doorRMat.emissive.setHex(0x5a6a8a); closet.userData.doorRMat.emissiveIntensity = 0.35;
+          } else {
+            closet.userData.doorLMat.emissive.setHex(0x000000); closet.userData.doorLMat.emissiveIntensity = 0;
+            closet.userData.doorRMat.emissive.setHex(0x000000); closet.userData.doorRMat.emissiveIntensity = 0;
           }
-          closet.userData.doorLMat.emissive.setHex(0x5a6a8a); closet.userData.doorLMat.emissiveIntensity = 0.35;
-          closet.userData.doorRMat.emissive.setHex(0x5a6a8a); closet.userData.doorRMat.emissiveIntensity = 0.35;
-        } else {
+        } else if (!flashlightOn) {
+          // Flashlight OFF: no glow, no prompt, but E still works — clear any stale emissive
           closet.userData.doorLMat.emissive.setHex(0x000000); closet.userData.doorLMat.emissiveIntensity = 0;
           closet.userData.doorRMat.emissive.setHex(0x000000); closet.userData.doorRMat.emissiveIntensity = 0;
         }
