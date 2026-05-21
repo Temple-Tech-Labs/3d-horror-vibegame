@@ -17,30 +17,35 @@ document.body.appendChild(renderer.domElement);
 // ─── Scene ───────────────────────────────────────────────────────────────────
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a0d2e);
-scene.fog = new THREE.FogExp2(0x1a0d2e, 0.05);
+scene.fog = new THREE.FogExp2(0x1a0d2e, 0.025);
 
 // ─── Lighting ────────────────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0x1a0d2e, 0.08));
-scene.add(new THREE.HemisphereLight(0x2a1a3a, 0x1a0d0a, 0.1));
+scene.add(new THREE.AmbientLight(0x1a0d2e, 0.25));
+scene.add(new THREE.HemisphereLight(0x2a1a3a, 0x1a0d0a, 0.28));
 
 // Lobby warm point light
-const lobbyLight = new THREE.PointLight(0xff8847, 0.5, 8);
+const lobbyLight = new THREE.PointLight(0xff8847, 1.0, 12);
 lobbyLight.position.set(0, 3, 0);
 scene.add(lobbyLight);
 
 // Living room fireplace ember
-const fireplaceLight = new THREE.PointLight(0xff8847, 0.3, 3);
+const fireplaceLight = new THREE.PointLight(0xff8847, 0.8, 6);
 fireplaceLight.position.set(0, 0.5, -14.5);
 scene.add(fireplaceLight);
 
 // Kitchen moonlight through west window
 const moonLight = new THREE.SpotLight(0x5a6a8a, 1.5);
-moonLight.angle = 0.4;
-moonLight.penumbra = 0.3;
+moonLight.angle = 0.55;
+moonLight.penumbra = 0.45;
 moonLight.position.set(-20, 3, -2);
 moonLight.target.position.set(-11, 0, -2);
 scene.add(moonLight);
 scene.add(moonLight.target);
+
+// Kitchen residual oil-lamp glow (ambient fill, keeps moonlight dominant)
+const kitchenFillLight = new THREE.PointLight(0xff8847, 0.4, 5);
+kitchenFillLight.position.set(-7, 3, -2);
+scene.add(kitchenFillLight);
 
 // ─── Floor ───────────────────────────────────────────────────────────────────
 const floorMesh = new THREE.Mesh(
