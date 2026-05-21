@@ -426,6 +426,85 @@ wallColliders.push(new THREE.Box3(
   new THREE.Vector3(5, 4, -6)
 ));
 
+// ─── Closets ──────────────────────────────────────────────────────────────────
+let hiddenInCloset = null;
+
+function makeCloset(px, py, pz, rotY) {
+  const group = new THREE.Group();
+  group.position.set(px, py, pz);
+  group.rotation.y = rotY;
+
+  const mkWood = () => new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
+
+  // Structural panels
+  const backWall = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.2, 0.05), mkWood());
+  backWall.position.set(0, 0, -0.375); group.add(backWall);
+
+  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.2, 0.8), mkWood());
+  leftWall.position.set(-0.475, 0, 0); group.add(leftWall);
+
+  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.2, 0.8), mkWood());
+  rightWall.position.set(0.475, 0, 0); group.add(rightWall);
+
+  const top = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.8), mkWood());
+  top.position.set(0, 1.075, 0); group.add(top);
+
+  const bottom = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.8), mkWood());
+  bottom.position.set(0, -1.075, 0); group.add(bottom);
+
+  // Doors — each with its own material instance for independent emissive control
+  const doorLMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
+  const doorL = new THREE.Mesh(new THREE.BoxGeometry(0.48, 2.0, 0.04), doorLMat);
+  doorL.position.set(-0.245, 0, 0.38); group.add(doorL);
+  group.userData.doorLMat = doorLMat;
+
+  const doorRMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
+  const doorR = new THREE.Mesh(new THREE.BoxGeometry(0.48, 2.0, 0.04), doorRMat);
+  doorR.position.set(0.245, 0, 0.38); group.add(doorR);
+  group.userData.doorRMat = doorRMat;
+
+  // Brass door handles at hip height (local y = 0 = world y 1.1)
+  const handleMat = new THREE.MeshStandardMaterial({ color: 0xa87a3a, roughness: 0.4, metalness: 0.6 });
+  const handleL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), handleMat);
+  handleL.position.set(-0.05, 0, 0.405); group.add(handleL);
+  const handleR = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), handleMat);
+  handleR.position.set(0.05, 0, 0.405); group.add(handleR);
+
+  // Interior slats — visible only when Lia is hiding inside
+  // World y 0.3→1.8 = local y -0.8→0.7, 6 evenly spaced (step 0.3)
+  const slatMat = new THREE.MeshStandardMaterial({ color: 0x2a1408, roughness: 0.8, metalness: 0.05 });
+  const slats = [];
+  for (let i = 0; i < 6; i++) {
+    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.05), slatMat);
+    slat.position.set(0, -0.8 + i * 0.3, 0.38);
+    slat.visible = false;
+    group.add(slat);
+    slats.push(slat);
+  }
+  group.userData.slats = slats;
+
+  // Interior ambient light — cold purple, seen from inside
+  const intLight = new THREE.PointLight(0x1a0d2e, 0.5, 1.5);
+  intLight.position.set(0, 0, -0.1);
+  group.add(intLight);
+
+  scene.add(group);
+  return group;
+}
+
+// Closet #1 — Lobby east wall, doors face west (rotation PI/2)
+// Closet #2 — Living Room SW area, doors face northeast diagonal (rotation -3PI/4)
+const closets = [
+  makeCloset(4.8,  1.1,   0,  Math.PI / 2),
+  makeCloset(-3.5, 1.1, -10, -3 * Math.PI / 4),
+];
+
+// Rough AABB colliders so Lia can't walk through the closets
+// Closet #1 (rotated 90°): original 1.0×0.8 → world Z×X
+wallColliders.push(new THREE.Box3(new THREE.Vector3(4.4, 0, -0.5),  new THREE.Vector3(5.2, 2.2, 0.5)));
+// Closet #2 (rotated 135°): conservative 0.7×0.7 footprint
+wallColliders.push(new THREE.Box3(new THREE.Vector3(-4.2, 0, -10.7), new THREE.Vector3(-2.8, 2.2, -9.3)));
+
 // ─── Camera & player object ───────────────────────────────────────────────────
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 200);
 
@@ -512,10 +591,11 @@ function syncMoveStateFromKeys() {
   moveState.right   = (keys.right   ? 1 : 0) - (keys.left     ? 1 : 0);
 }
 
-let mobileSprint  = false;
-let gameStarted   = false;
-let flashlightOn  = false;
-let candleCount   = 0;
+let mobileSprint   = false;
+let gameStarted    = false;
+let flashlightOn   = false;
+let candleCount    = 0;
+let movementLocked = false;
 
 const WALK_SPEED  = 4;
 const SPRINT_MULT = 1.6;
@@ -715,8 +795,9 @@ const candles = [
 ];
 
 // ─── HUD room element ─────────────────────────────────────────────────────────
-const hudRoom    = document.getElementById('hud-room');
-const hudCandles = document.getElementById('hud-candles');
+const hudRoom      = document.getElementById('hud-room');
+const hudCandles   = document.getElementById('hud-candles');
+const interactPrompt = document.getElementById('interact-prompt');
 
 function getCurrentRoom(x, z) {
   if (x >= -15 && x <= -5 && z >= -5 && z <= 5)   return 'Kitchen';
@@ -741,20 +822,90 @@ function lightCandle(candle) {
 }
 
 function tryInteract() {
+  // Priority 1: exit closet — no flashlight requirement
+  if (hiddenInCloset !== null) { exitCloset(); return; }
+
   if (!flashlightOn) return;
+
   const pos = isTouchDevice ? playerObj.position : camera.position;
+  camera.getWorldDirection(_fwd);
+
+  // Priority 2: light a candle
   for (const candle of candles) {
     if (candle.userData.lit) continue;
     _toCandle.subVectors(candle.position, pos);
     if (_toCandle.length() > 2.5) continue;
     _toCandle.normalize();
-    camera.getWorldDirection(_fwd);
     if (_fwd.dot(_toCandle) < 0.5) continue;
     lightCandle(candle);
     candleCount++;
     hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
-    break;
+    return;
   }
+
+  // Priority 3: enter a closet
+  const fwdH = _fwd.clone(); fwdH.y = 0;
+  if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
+  for (const closet of closets) {
+    _toCloset.subVectors(closet.position, pos); _toCloset.y = 0;
+    if (_toCloset.length() > 2.5) continue;
+    _toCloset.normalize();
+    if (fwdH.dot(_toCloset) < 0.3) continue;
+    enterCloset(closet);
+    return;
+  }
+}
+
+function enterCloset(closet) {
+  const pos = isTouchDevice ? playerObj.position : camera.position;
+  closet.userData.previousPosition = pos.clone();
+  closet.userData.prevCameraRotX   = camera.rotation.x;
+
+  // Place camera ~0.5 units behind doors (local z = -0.1)
+  const interior = new THREE.Vector3(0, 0, -0.1)
+    .applyEuler(new THREE.Euler(0, closet.rotation.y, 0))
+    .add(closet.position);
+  camera.position.set(interior.x, 1.6, interior.z);
+  playerObj.position.set(interior.x, 0, interior.z);
+
+  // Orient camera to face doors
+  if (controls) {
+    controls.getObject().rotation.y = closet.rotation.y;
+    camera.rotation.x = -0.05;
+  } else {
+    mobileYaw.value   = closet.rotation.y;
+    mobilePitch.value = -0.05;
+  }
+
+  movementLocked = true;
+
+  closet.userData.doorLMat.transparent = true;  closet.userData.doorLMat.opacity = 0.0;
+  closet.userData.doorRMat.transparent = true;  closet.userData.doorRMat.opacity = 0.0;
+  for (const s of closet.userData.slats) s.visible = true;
+
+  hiddenInCloset = closet;
+  playerObj.userData.isHidden = true;
+}
+
+function exitCloset() {
+  const closet = hiddenInCloset;
+
+  const doorDir = new THREE.Vector3(0, 0, 1)
+    .applyEuler(new THREE.Euler(0, closet.rotation.y, 0));
+  const exitPos = closet.userData.previousPosition.clone()
+    .addScaledVector(doorDir, 0.7);
+  camera.position.set(exitPos.x, 1.6, exitPos.z);
+  playerObj.position.set(exitPos.x, 0, exitPos.z);
+
+  camera.rotation.x = closet.userData.prevCameraRotX;
+  movementLocked = false;
+
+  closet.userData.doorLMat.transparent = false; closet.userData.doorLMat.opacity = 1.0;
+  closet.userData.doorRMat.transparent = false; closet.userData.doorRMat.opacity = 1.0;
+  for (const s of closet.userData.slats) s.visible = false;
+
+  hiddenInCloset = null;
+  playerObj.userData.isHidden = false;
 }
 
 // ─── Reusable vectors ─────────────────────────────────────────────────────────
@@ -763,6 +914,7 @@ const _right      = new THREE.Vector3();
 const _up         = new THREE.Vector3(0, 1, 0);
 const _testSphere = new THREE.Sphere(new THREE.Vector3(), 0.3);
 const _toCandle   = new THREE.Vector3();
+const _toCloset   = new THREE.Vector3();
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
 function animate() {
@@ -821,30 +973,84 @@ function animate() {
     hudRoom.textContent = 'Room: ' + getCurrentRoom(playerObj.position.x, playerObj.position.z);
 
   } else if (controls) {
-    const speed = keys.sprint ? WALK_SPEED * SPRINT_MULT : WALK_SPEED;
-    const dist  = speed * dt;
+    if (!movementLocked) {
+      const speed = keys.sprint ? WALK_SPEED * SPRINT_MULT : WALK_SPEED;
+      const dist  = speed * dt;
 
-    camera.getWorldDirection(_fwd);
-    _fwd.y = 0;
-    if (_fwd.lengthSq() > 0.0001) _fwd.normalize();
-    _right.crossVectors(_fwd, _up).normalize();
+      camera.getWorldDirection(_fwd);
+      _fwd.y = 0;
+      if (_fwd.lengthSq() > 0.0001) _fwd.normalize();
+      _right.crossVectors(_fwd, _up).normalize();
 
-    const dx = (_fwd.x * moveState.forward + _right.x * moveState.right) * dist;
-    const dz = (_fwd.z * moveState.forward + _right.z * moveState.right) * dist;
-    const cx = camera.position.x, cz = camera.position.z;
+      const dx = (_fwd.x * moveState.forward + _right.x * moveState.right) * dist;
+      const dz = (_fwd.z * moveState.forward + _right.z * moveState.right) * dist;
+      const cx = camera.position.x, cz = camera.position.z;
 
-    _testSphere.center.set(cx + dx, 1.6, cz);
-    const canX = !wallColliders.some(b => b.intersectsSphere(_testSphere));
-    _testSphere.center.set(cx, 1.6, cz + dz);
-    const canZ = !wallColliders.some(b => b.intersectsSphere(_testSphere));
+      _testSphere.center.set(cx + dx, 1.6, cz);
+      const canX = !wallColliders.some(b => b.intersectsSphere(_testSphere));
+      _testSphere.center.set(cx, 1.6, cz + dz);
+      const canZ = !wallColliders.some(b => b.intersectsSphere(_testSphere));
 
-    camera.position.x += canX ? dx : 0;
-    camera.position.z += canZ ? dz : 0;
-    camera.position.y = 1.6;
-    playerObj.position.set(camera.position.x, 0, camera.position.z);
+      camera.position.x += canX ? dx : 0;
+      camera.position.z += canZ ? dz : 0;
+      camera.position.y = 1.6;
+      playerObj.position.set(camera.position.x, 0, camera.position.z);
+    }
 
     hudRoom.textContent = 'Room: ' + getCurrentRoom(camera.position.x, camera.position.z);
   }
+
+  // ── Interact-prompt telegraphing ────────────────────────────────────────────
+  const promptPos = isTouchDevice ? playerObj.position : camera.position;
+  camera.getWorldDirection(_fwd);
+
+  let promptShown = false;
+
+  if (hiddenInCloset !== null) {
+    interactPrompt.textContent = 'Press E to exit';
+    interactPrompt.style.display = 'block';
+    promptShown = true;
+    for (const c of closets) {
+      c.userData.doorLMat.emissive.setHex(0x000000); c.userData.doorLMat.emissiveIntensity = 0;
+      c.userData.doorRMat.emissive.setHex(0x000000); c.userData.doorRMat.emissiveIntensity = 0;
+    }
+  } else {
+    const fwdH = new THREE.Vector3(_fwd.x, 0, _fwd.z);
+    if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
+
+    for (const closet of closets) {
+      _toCloset.subVectors(closet.position, promptPos); _toCloset.y = 0;
+      const dist = _toCloset.length();
+      const inRange = dist < 2.5 && flashlightOn;
+
+      if (inRange) {
+        const dir = _toCloset.clone().normalize();
+        if (fwdH.dot(dir) > 0.3 && !promptShown) {
+          // Check if a candle has priority (closer + facing)
+          let candlePriority = false;
+          for (const candle of candles) {
+            if (candle.userData.lit) continue;
+            const tc = new THREE.Vector3().subVectors(candle.position, promptPos);
+            if (tc.length() < 2.5 && _fwd.dot(tc.normalize()) > 0.5) { candlePriority = true; break; }
+          }
+          if (!candlePriority) {
+            interactPrompt.textContent = 'Press E to hide';
+            interactPrompt.style.display = 'block';
+            promptShown = true;
+          }
+          closet.userData.doorLMat.emissive.setHex(0x5a6a8a); closet.userData.doorLMat.emissiveIntensity = 0.35;
+          closet.userData.doorRMat.emissive.setHex(0x5a6a8a); closet.userData.doorRMat.emissiveIntensity = 0.35;
+        } else {
+          closet.userData.doorLMat.emissive.setHex(0x000000); closet.userData.doorLMat.emissiveIntensity = 0;
+          closet.userData.doorRMat.emissive.setHex(0x000000); closet.userData.doorRMat.emissiveIntensity = 0;
+        }
+      } else {
+        closet.userData.doorLMat.emissive.setHex(0x000000); closet.userData.doorLMat.emissiveIntensity = 0;
+        closet.userData.doorRMat.emissive.setHex(0x000000); closet.userData.doorRMat.emissiveIntensity = 0;
+      }
+    }
+  }
+  if (!promptShown) interactPrompt.style.display = 'none';
 
   renderer.render(scene, camera);
 }
