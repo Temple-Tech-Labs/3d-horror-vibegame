@@ -452,43 +452,37 @@ function makeCloset(px, py, pz, rotY) {
   const bottom = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.8), mkWood());
   bottom.position.set(0, -1.075, 0); group.add(bottom);
 
-  // Doors — each with its own material instance for independent emissive control
-  const doorLMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
-  const doorL = new THREE.Mesh(new THREE.BoxGeometry(0.48, 2.0, 0.04), doorLMat);
-  doorL.position.set(-0.245, 0, 0.38); group.add(doorL);
-  group.userData.doorLMat = doorLMat;
+  // Bendy-style front panel: 4 solid pieces framing a horizontal peek slot at eye level.
+  // Peek slot: local x ∈ [-0.35, 0.35], local y ∈ [0.275, 0.525] (world y 1.375–1.625)
+  // One shared material so telegraphing emissive applies to the whole frame at once.
+  const panelMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
+  group.userData.panelMat = panelMat;
 
-  const doorRMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
-  const doorR = new THREE.Mesh(new THREE.BoxGeometry(0.48, 2.0, 0.04), doorRMat);
-  doorR.position.set(0.245, 0, 0.38); group.add(doorR);
-  group.userData.doorRMat = doorRMat;
+  // Top bar  — above slot, spans full width
+  const topBar = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.475, 0.04), panelMat);
+  topBar.position.set(0, 0.7625, 0.38); group.add(topBar);
 
-  // Brass door handles at hip height (local y = 0 = world y 1.1)
+  // Bottom bar — below slot, spans full width
+  const botBar = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.275, 0.04), panelMat);
+  botBar.position.set(0, -0.3625, 0.38); group.add(botBar);
+
+  // Left jamb — thin strip left of the slot opening
+  const leftJamb = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.04), panelMat);
+  leftJamb.position.set(-0.425, 0.4, 0.38); group.add(leftJamb);
+
+  // Right jamb — thin strip right of the slot opening
+  const rightJamb = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.04), panelMat);
+  rightJamb.position.set(0.425, 0.4, 0.38); group.add(rightJamb);
+
+  // Brass handles just below the peek slot (local y = 0 = world y 1.1)
   const handleMat = new THREE.MeshStandardMaterial({ color: 0xa87a3a, roughness: 0.4, metalness: 0.6 });
   const handleL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), handleMat);
   handleL.position.set(-0.05, 0, 0.405); group.add(handleL);
   const handleR = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), handleMat);
   handleR.position.set(0.05, 0, 0.405); group.add(handleR);
 
-  // Interior slats — visible only when Lia is hiding inside
-  // World y 0.3→1.8 = local y -0.8→0.7, 6 evenly spaced (step 0.3)
-  // Slight emissive so slats read as dark silhouettes even without flashlight
-  const slatMat = new THREE.MeshStandardMaterial({
-    color: 0x2a1408, emissive: 0x2a1408, emissiveIntensity: 0.18,
-    roughness: 0.8, metalness: 0.05
-  });
-  const slats = [];
-  for (let i = 0; i < 6; i++) {
-    const slat = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.05), slatMat);
-    slat.position.set(0, -0.8 + i * 0.3, 0.38);
-    slat.visible = false;
-    group.add(slat);
-    slats.push(slat);
-  }
-  group.userData.slats = slats;
-
-  // Interior ambient light — cold blue-purple tint, provides enough fill to see hands + slats
-  const intLight = new THREE.PointLight(0x2a1a4a, 0.9, 2.2);
+  // Interior dim fill light — lets Lia vaguely see her hands while hiding
+  const intLight = new THREE.PointLight(0x1a0d2e, 0.5, 1.5);
   intLight.position.set(0, 0, -0.1);
   group.add(intLight);
 
@@ -798,6 +792,18 @@ const candles = [
   makeCandle(0.5,   1.59, -14.7), // LR fireplace mantle (top of firebox, near front edge)
 ];
 
+// TEMP: visibility test sphere — confirms emissive enemy materials work in dim lighting
+// Remove when first enemy is implemented (Prompt #6)
+const _tempSphere = new THREE.Mesh(
+  new THREE.SphereGeometry(0.15, 12, 10),
+  new THREE.MeshStandardMaterial({ color: 0x00ff44, emissive: 0x00ff44, emissiveIntensity: 2.0, roughness: 0.5, metalness: 0 })
+);
+_tempSphere.position.set(0, 1.5, -2);
+scene.add(_tempSphere);
+const _tempLight = new THREE.PointLight(0x00ff44, 0.4, 4);
+_tempLight.position.set(0, 1.5, -2);
+scene.add(_tempLight);
+
 // ─── HUD room element ─────────────────────────────────────────────────────────
 const hudRoom      = document.getElementById('hud-room');
 const hudCandles   = document.getElementById('hud-candles');
@@ -865,11 +871,11 @@ function enterCloset(closet) {
   closet.userData.previousPosition = pos.clone();
   closet.userData.prevCameraRotX   = camera.rotation.x;
 
-  // Place camera ~0.5 units behind doors (local z = -0.1)
-  const interior = new THREE.Vector3(0, 0, -0.1)
+  // Place camera at peek slot height, ~0.2 units behind front panel (local 0, 0.4, 0.18)
+  const interior = new THREE.Vector3(0, 0.4, 0.18)
     .applyEuler(new THREE.Euler(0, closet.rotation.y, 0))
     .add(closet.position);
-  camera.position.set(interior.x, 1.6, interior.z);
+  camera.position.set(interior.x, interior.y, interior.z);
   playerObj.position.set(interior.x, 0, interior.z);
 
   // Orient camera to face doors
@@ -882,10 +888,6 @@ function enterCloset(closet) {
   }
 
   movementLocked = true;
-
-  closet.userData.doorLMat.transparent = true;  closet.userData.doorLMat.opacity = 0.0;
-  closet.userData.doorRMat.transparent = true;  closet.userData.doorRMat.opacity = 0.0;
-  for (const s of closet.userData.slats) s.visible = true;
 
   hiddenInCloset = closet;
   playerObj.userData.isHidden = true;
@@ -905,10 +907,6 @@ function exitCloset() {
 
   camera.rotation.x = 0;         // clear pressed-against-door tilt completely
   movementLocked = false;
-
-  closet.userData.doorLMat.transparent = false; closet.userData.doorLMat.opacity = 1.0;
-  closet.userData.doorRMat.transparent = false; closet.userData.doorRMat.opacity = 1.0;
-  for (const s of closet.userData.slats) s.visible = false;
 }
 
 // ─── Reusable vectors ─────────────────────────────────────────────────────────
@@ -1003,6 +1001,17 @@ function animate() {
     hudRoom.textContent = 'Room: ' + getCurrentRoom(camera.position.x, camera.position.z);
   }
 
+  // Pitch clamp while hiding — ±15° so peeking doesn't look straight up/down
+  if (hiddenInCloset !== null) {
+    const pitchLimit = Math.PI / 12;
+    if (!isTouchDevice) {
+      camera.rotation.x = Math.max(-pitchLimit, Math.min(pitchLimit, camera.rotation.x));
+    } else {
+      mobilePitch.value = Math.max(-pitchLimit, Math.min(pitchLimit, mobilePitch.value));
+      camera.quaternion.setFromEuler(new THREE.Euler(mobilePitch.value, mobileYaw.value, 0, 'YXZ'));
+    }
+  }
+
   // ── Interact-prompt telegraphing ────────────────────────────────────────────
   const promptPos = isTouchDevice ? playerObj.position : camera.position;
   camera.getWorldDirection(_fwd);
@@ -1010,25 +1019,19 @@ function animate() {
   let promptShown = false;
 
   if (hiddenInCloset !== null) {
-    interactPrompt.textContent = 'Press E to exit';
+    // Hard guard: when hidden, only ever show "get out" — nothing else can override
+    interactPrompt.textContent = 'Press E to get out';
     interactPrompt.style.display = 'block';
     promptShown = true;
-    for (const c of closets) {
-      c.userData.doorLMat.emissive.setHex(0x000000); c.userData.doorLMat.emissiveIntensity = 0;
-      c.userData.doorRMat.emissive.setHex(0x000000); c.userData.doorRMat.emissiveIntensity = 0;
-    }
   } else {
     const fwdH = new THREE.Vector3(_fwd.x, 0, _fwd.z);
     if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
 
     for (const closet of closets) {
       _toCloset.subVectors(closet.position, promptPos); _toCloset.y = 0;
-      const dist = _toCloset.length();
-      // Distance + direction check — no flashlight requirement (closet is always enterable)
-      const inRange = dist < 2.5;
+      const inRange = _toCloset.length() < 2.5;
 
       if (inRange && fwdH.dot(_toCloset.clone().normalize()) > 0.3) {
-        // Visual telegraph: only when flashlight is ON and no candle has priority
         if (flashlightOn && !promptShown) {
           let candlePriority = false;
           for (const candle of candles) {
@@ -1040,20 +1043,19 @@ function animate() {
             interactPrompt.textContent = 'Press E to hide';
             interactPrompt.style.display = 'block';
             promptShown = true;
-            closet.userData.doorLMat.emissive.setHex(0x5a6a8a); closet.userData.doorLMat.emissiveIntensity = 0.35;
-            closet.userData.doorRMat.emissive.setHex(0x5a6a8a); closet.userData.doorRMat.emissiveIntensity = 0.35;
+            closet.userData.panelMat.emissive.setHex(0x5a6a8a);
+            closet.userData.panelMat.emissiveIntensity = 0.35;
           } else {
-            closet.userData.doorLMat.emissive.setHex(0x000000); closet.userData.doorLMat.emissiveIntensity = 0;
-            closet.userData.doorRMat.emissive.setHex(0x000000); closet.userData.doorRMat.emissiveIntensity = 0;
+            closet.userData.panelMat.emissive.setHex(0x000000);
+            closet.userData.panelMat.emissiveIntensity = 0;
           }
-        } else if (!flashlightOn) {
-          // Flashlight OFF: no glow, no prompt, but E still works — clear any stale emissive
-          closet.userData.doorLMat.emissive.setHex(0x000000); closet.userData.doorLMat.emissiveIntensity = 0;
-          closet.userData.doorRMat.emissive.setHex(0x000000); closet.userData.doorRMat.emissiveIntensity = 0;
+        } else {
+          closet.userData.panelMat.emissive.setHex(0x000000);
+          closet.userData.panelMat.emissiveIntensity = 0;
         }
       } else {
-        closet.userData.doorLMat.emissive.setHex(0x000000); closet.userData.doorLMat.emissiveIntensity = 0;
-        closet.userData.doorRMat.emissive.setHex(0x000000); closet.userData.doorRMat.emissiveIntensity = 0;
+        closet.userData.panelMat.emissive.setHex(0x000000);
+        closet.userData.panelMat.emissiveIntensity = 0;
       }
     }
   }

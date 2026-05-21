@@ -87,3 +87,15 @@ These are the canonical lighting baseline values. Every future floor (Purgatory,
 - Wainscoting seam at y=2.5 in #3d2817 adds vintage texture
 - Per-floor variations should only adjust ambient color tint, not intensity (basement: cooler, Heaven Hall: cooler-bluer moonlight, Purgatory: similar to Limbo)
 - Lantern (Prompt #4) will add a moving point light following the player — its values TBD
+
+## Enemy Visibility Standard — LOCKED (Prompt #5.2)
+
+All Beanie enemies (Fart-Cloud Kids, Farting Skeletons, Zombie-Ghoul Grandparents) MUST be inherently visible in dim lighting without requiring the player's flashlight.
+
+This is achieved via:
+- **Emissive materials** on key enemy parts (eyes, fart clouds, signature features) at high intensity (~1.5–2.5)
+- **Optional accompanying point light** parented to enemy mesh, dim cool tone (~0.4 intensity, distance 4), to "glow" them in the dark
+
+The reasoning: hiding-and-peeking only works if the player can actually SEE the threat passing by from a hiding spot. If enemies blend into darkness, the entire hide mechanic loses its payoff.
+
+This rule is binding for Prompt #6+ (when enemies are introduced).
