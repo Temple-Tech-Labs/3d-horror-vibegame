@@ -1061,6 +1061,41 @@ function animate() {
   }
   if (!promptShown) interactPrompt.style.display = 'none';
 
+  // ── Debug overlay ────────────────────────────────────────────────────────
+  const debugEl = document.getElementById('debug-overlay');
+  if (debugEl) {
+    const pos = isTouchDevice ? playerObj.position : camera.position;
+    const camForward = new THREE.Vector3();
+    camera.getWorldDirection(camForward);
+
+    let nearestClosetLabel = 'none';
+    let nearestClosetDist = Infinity;
+    for (let i = 0; i < closets.length; i++) {
+      const d = pos.distanceTo(closets[i].position);
+      if (d < nearestClosetDist) { nearestClosetDist = d; nearestClosetLabel = 'closet_' + i; }
+    }
+
+    let nearestCandleLabel = 'none';
+    let nearestCandleDist = Infinity;
+    for (let i = 0; i < candles.length; i++) {
+      if (candles[i].userData.lit) continue;
+      const d = pos.distanceTo(candles[i].position);
+      if (d < nearestCandleDist) { nearestCandleDist = d; nearestCandleLabel = 'candle_' + i; }
+    }
+
+    const promptVisible = interactPrompt.style.display !== 'none';
+
+    debugEl.textContent =
+      `hidden: ${hiddenInCloset ? ('closet_' + closets.indexOf(hiddenInCloset)) : 'null'}\n` +
+      `pos:   x=${pos.x.toFixed(2)} y=${pos.y.toFixed(2)} z=${pos.z.toFixed(2)}\n` +
+      `look:  x=${camForward.x.toFixed(2)} z=${camForward.z.toFixed(2)}\n` +
+      `flash: ${flashlightOn ? 'ON' : 'off'}\n` +
+      `move-lock: ${movementLocked ? 'LOCKED' : 'free'}\n` +
+      `near closet: ${nearestClosetLabel} d=${nearestClosetDist.toFixed(2)}\n` +
+      `near candle: ${nearestCandleLabel} d=${nearestCandleDist.toFixed(2)}\n` +
+      `prompt: ${promptVisible ? '"' + interactPrompt.textContent + '"' : 'hidden'}`;
+  }
+
   renderer.render(scene, camera);
 }
 
