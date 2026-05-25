@@ -832,37 +832,58 @@ function lightCandle(candle) {
 }
 
 function tryInteract() {
-  // Priority 1: exit closet — always works, no flashlight required
+  // Priority 1: exit closet — always works
   if (hiddenInCloset !== null) { exitCloset(); return; }
 
   const pos = isTouchDevice ? playerObj.position : camera.position;
   camera.getWorldDirection(_fwd);
 
-  // Priority 2: light a candle — requires flashlight
+  // Find best candidate among all interactables based on distance + facing
+  let bestTarget = null;     // { type: 'candle' | 'closet', ref, distance }
+  let bestScore = Infinity;  // lower = better; we'll subtract bias for closets
+
+  const fwdH = _fwd.clone(); fwdH.y = 0;
+  if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
+
+  // Candidate: candles (requires flashlight ON)
   if (flashlightOn) {
     for (const candle of candles) {
       if (candle.userData.lit) continue;
       _toCandle.subVectors(candle.position, pos);
-      if (_toCandle.length() > 2.5) continue;
+      const dist = _toCandle.length();
+      if (dist > 2.5) continue;
       _toCandle.normalize();
       if (_fwd.dot(_toCandle) < 0.5) continue;
-      lightCandle(candle);
-      candleCount++;
-      hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
-      return;
+      if (dist < bestScore) {
+        bestScore = dist;
+        bestTarget = { type: 'candle', ref: candle, distance: dist };
+      }
     }
   }
 
-  // Priority 3: enter a closet — does NOT require flashlight (emergency hide)
-  const fwdH = _fwd.clone(); fwdH.y = 0;
-  if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
+  // Candidate: closets (does NOT require flashlight — emergency hide)
   for (const closet of closets) {
     _toCloset.subVectors(closet.position, pos); _toCloset.y = 0;
-    if (_toCloset.length() > 2.5) continue;
+    const dist = _toCloset.length();
+    if (dist > 2.5) continue;
     _toCloset.normalize();
     if (fwdH.dot(_toCloset) < 0.3) continue;
-    enterCloset(closet);
-    return;
+    // Closets get a 0.5-unit bonus (subtract from effective score) — hiding is emergency-priority
+    const effectiveScore = dist - 0.5;
+    if (effectiveScore < bestScore) {
+      bestScore = effectiveScore;
+      bestTarget = { type: 'closet', ref: closet, distance: dist };
+    }
+  }
+
+  // Act on the winner
+  if (bestTarget === null) return;
+  if (bestTarget.type === 'candle') {
+    lightCandle(bestTarget.ref);
+    candleCount++;
+    hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
+  } else if (bestTarget.type === 'closet') {
+    enterCloset(bestTarget.ref);
   }
 }
 
@@ -879,8 +900,9 @@ function enterCloset(closet) {
   playerObj.position.set(interior.x, 0, interior.z);
 
   // Orient camera to face doors
+  // Note: PLC r134+ removed getObject(); camera is rotated directly.
   if (controls) {
-    controls.getObject().rotation.y = closet.rotation.y;
+    camera.rotation.y = closet.rotation.y;
     camera.rotation.x = -0.05;
   } else {
     mobileYaw.value   = closet.rotation.y;
@@ -1012,54 +1034,76 @@ function animate() {
     }
   }
 
-  // ── Interact-prompt telegraphing ────────────────────────────────────────────
+  // ── Interact-prompt telegraphing (distance-based priority) ─────────────
   const promptPos = isTouchDevice ? playerObj.position : camera.position;
   camera.getWorldDirection(_fwd);
 
-  let promptShown = false;
-
+  // Always-on hard guard: when hidden, only show "get out"
   if (hiddenInCloset !== null) {
-    // Hard guard: when hidden, only ever show "get out" — nothing else can override
     interactPrompt.textContent = 'Press E to get out';
     interactPrompt.style.display = 'block';
-    promptShown = true;
+    // Clear any closet emissives so they don't linger
+    for (const c of closets) {
+      c.userData.panelMat.emissive.setHex(0x000000);
+      c.userData.panelMat.emissiveIntensity = 0;
+    }
   } else {
     const fwdH = new THREE.Vector3(_fwd.x, 0, _fwd.z);
     if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
 
+    // Find the same "best target" as tryInteract() would
+    let best = null;  // { type, ref, distance, score }
+    let bestScore = Infinity;
+
+    if (flashlightOn) {
+      for (const candle of candles) {
+        if (candle.userData.lit) continue;
+        const tc = new THREE.Vector3().subVectors(candle.position, promptPos);
+        const d = tc.length();
+        if (d > 2.5) continue;
+        tc.normalize();
+        if (_fwd.dot(tc) < 0.5) continue;
+        if (d < bestScore) {
+          bestScore = d;
+          best = { type: 'candle', ref: candle, distance: d };
+        }
+      }
+    }
+
     for (const closet of closets) {
       _toCloset.subVectors(closet.position, promptPos); _toCloset.y = 0;
-      const inRange = _toCloset.length() < 2.5;
+      const d = _toCloset.length();
+      if (d > 2.5) continue;
+      _toCloset.normalize();
+      if (fwdH.dot(_toCloset) < 0.3) continue;
+      const effScore = d - 0.5; // closet bias
+      if (effScore < bestScore) {
+        bestScore = effScore;
+        best = { type: 'closet', ref: closet, distance: d };
+      }
+    }
 
-      if (inRange && fwdH.dot(_toCloset.clone().normalize()) > 0.3) {
-        if (flashlightOn && !promptShown) {
-          let candlePriority = false;
-          for (const candle of candles) {
-            if (candle.userData.lit) continue;
-            const tc = new THREE.Vector3().subVectors(candle.position, promptPos);
-            if (tc.length() < 2.5 && _fwd.dot(tc.normalize()) > 0.5) { candlePriority = true; break; }
-          }
-          if (!candlePriority) {
-            interactPrompt.textContent = 'Press E to hide';
-            interactPrompt.style.display = 'block';
-            promptShown = true;
-            closet.userData.panelMat.emissive.setHex(0x5a6a8a);
-            closet.userData.panelMat.emissiveIntensity = 0.35;
-          } else {
-            closet.userData.panelMat.emissive.setHex(0x000000);
-            closet.userData.panelMat.emissiveIntensity = 0;
-          }
-        } else {
-          closet.userData.panelMat.emissive.setHex(0x000000);
-          closet.userData.panelMat.emissiveIntensity = 0;
-        }
-      } else {
-        closet.userData.panelMat.emissive.setHex(0x000000);
-        closet.userData.panelMat.emissiveIntensity = 0;
+    // Reset all closet emissives first, then highlight winner if it's a closet
+    for (const c of closets) {
+      c.userData.panelMat.emissive.setHex(0x000000);
+      c.userData.panelMat.emissiveIntensity = 0;
+    }
+
+    if (best === null) {
+      interactPrompt.style.display = 'none';
+    } else if (best.type === 'candle') {
+      interactPrompt.textContent = 'Press E to light candle';
+      interactPrompt.style.display = 'block';
+    } else if (best.type === 'closet') {
+      interactPrompt.textContent = 'Press E to hide';
+      interactPrompt.style.display = 'block';
+      // Visual telegraph: blue glow on the closet's panel (only when flashlight on, to keep the "dark hide" mood)
+      if (flashlightOn) {
+        best.ref.userData.panelMat.emissive.setHex(0x5a6a8a);
+        best.ref.userData.panelMat.emissiveIntensity = 0.35;
       }
     }
   }
-  if (!promptShown) interactPrompt.style.display = 'none';
 
   // ── Debug overlay ────────────────────────────────────────────────────────
   const debugEl = document.getElementById('debug-overlay');
