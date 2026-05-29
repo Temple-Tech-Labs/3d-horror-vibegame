@@ -187,7 +187,7 @@
         white-space: nowrap;
       }
     </style>
-    <script type="module" crossorigin src="/3d-horror-vibegame/assets/index-CWZ7A89E.js"></script>
+    <script type="module" crossorigin src="/3d-horror-vibegame/assets/index-DsFZqz6l.js"></script>
   </head>
   <body>
 
@@ -231,6 +231,39 @@
 
     <div id="interact-prompt"></div>
 
+    <!-- Caught flash overlay (red flash on Penny catch) -->
+    <div id="caught-flash" style="
+      position: fixed;
+      inset: 0;
+      background: #cc0033;
+      opacity: 0;
+      display: none;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+      z-index: 200;
+    "></div>
+
+    <!-- Limbo Hall victory overlay -->
+    <div id="limbo-victory" style="
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 20, 0.92);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 150;
+      color: #ff8847;
+      font-family: 'Georgia', serif;
+      text-align: center;
+      padding: 40px;
+    ">
+      <h1 style="font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">LIMBO HALL CLEARED</h1>
+      <p style="font-size: 24px; margin: 0 0 16px 0;">2 / 2 Magic-Methane-Candles lit!</p>
+      <p style="font-size: 18px; color: #b8a04a; margin: 0 0 30px 0; max-width: 600px;">Lia survives Penny the Pink-Bow Beanie's patrol. The stairs to Purgatory Hall are still locked... for now.</p>
+      <p style="font-size: 14px; color: #6b5d44; margin-top: 20px;">Press any key to continue exploring</p>
+    </div>
+
     <div id="debug-overlay" style="
       position: fixed;
       bottom: 60px;
@@ -243,8 +276,8 @@
       border: 1px solid #00ff00;
       border-radius: 4px;
       z-index: 9999;
-      min-width: 320px;
-      min-height: 140px;
+      min-width: 340px;
+      min-height: 200px;
       white-space: pre;
       pointer-events: none;
     "></div>
