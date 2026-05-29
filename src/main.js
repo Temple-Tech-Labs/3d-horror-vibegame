@@ -88,6 +88,7 @@ scene.add(ceilMesh);
 //   Living Room: x[-5, 5],   z[-15,-5]   — north of lobby
 //
 const wallColliders = [];
+const wallMeshes = []; // raycast targets for Penny's line-of-sight check
 
 function jitterColor(hex) {
   const c = new THREE.Color(hex);
@@ -104,6 +105,7 @@ function makeWall(x, y, z, w, h, d, collide = true) {
   mesh.castShadow = true;
   mesh.receiveShadow = true;
   scene.add(mesh);
+  wallMeshes.push(mesh);
   if (collide) {
     wallColliders.push(new THREE.Box3(
       new THREE.Vector3(x - w / 2, y - h / 2, z - d / 2),
@@ -426,83 +428,6 @@ wallColliders.push(new THREE.Box3(
   new THREE.Vector3(5, 4, -6)
 ));
 
-// ─── Closets ──────────────────────────────────────────────────────────────────
-let hiddenInCloset = null;
-
-function makeCloset(px, py, pz, rotY) {
-  const group = new THREE.Group();
-  group.position.set(px, py, pz);
-  group.rotation.y = rotY;
-
-  const mkWood = () => new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
-
-  // Structural panels
-  const backWall = new THREE.Mesh(new THREE.BoxGeometry(1.0, 2.2, 0.05), mkWood());
-  backWall.position.set(0, 0, -0.375); group.add(backWall);
-
-  const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.2, 0.8), mkWood());
-  leftWall.position.set(-0.475, 0, 0); group.add(leftWall);
-
-  const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.05, 2.2, 0.8), mkWood());
-  rightWall.position.set(0.475, 0, 0); group.add(rightWall);
-
-  const top = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.8), mkWood());
-  top.position.set(0, 1.075, 0); group.add(top);
-
-  const bottom = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.05, 0.8), mkWood());
-  bottom.position.set(0, -1.075, 0); group.add(bottom);
-
-  // Bendy-style front panel: 4 solid pieces framing a horizontal peek slot at eye level.
-  // Peek slot: local x ∈ [-0.35, 0.35], local y ∈ [0.275, 0.525] (world y 1.375–1.625)
-  // One shared material so telegraphing emissive applies to the whole frame at once.
-  const panelMat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.8, metalness: 0.05 });
-  group.userData.panelMat = panelMat;
-
-  // Top bar  — above slot, spans full width
-  const topBar = new THREE.Mesh(new THREE.BoxGeometry(1.0, 0.475, 0.04), panelMat);
-  topBar.position.set(0, 0.7625, 0.38); group.add(topBar);
-
-  // Bottom bar — below slot, spans full width
-  const botBar = new THREE.Mesh(new THREE.BoxGeometry(1.0, 1.275, 0.04), panelMat);
-  botBar.position.set(0, -0.3625, 0.38); group.add(botBar);
-
-  // Left jamb — thin strip left of the slot opening
-  const leftJamb = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.04), panelMat);
-  leftJamb.position.set(-0.425, 0.4, 0.38); group.add(leftJamb);
-
-  // Right jamb — thin strip right of the slot opening
-  const rightJamb = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.25, 0.04), panelMat);
-  rightJamb.position.set(0.425, 0.4, 0.38); group.add(rightJamb);
-
-  // Brass handles just below the peek slot (local y = 0 = world y 1.1)
-  const handleMat = new THREE.MeshStandardMaterial({ color: 0xa87a3a, roughness: 0.4, metalness: 0.6 });
-  const handleL = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), handleMat);
-  handleL.position.set(-0.05, 0, 0.405); group.add(handleL);
-  const handleR = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), handleMat);
-  handleR.position.set(0.05, 0, 0.405); group.add(handleR);
-
-  // Interior dim fill light — lets Lia vaguely see her hands while hiding
-  const intLight = new THREE.PointLight(0x1a0d2e, 0.5, 1.5);
-  intLight.position.set(0, 0, -0.1);
-  group.add(intLight);
-
-  scene.add(group);
-  return group;
-}
-
-// Closet #1 — Lobby east wall, doors face west (rotation PI/2)
-// Closet #2 — Living Room SW area, doors face northeast diagonal (rotation -3PI/4)
-const closets = [
-  makeCloset(4.8,  1.1,   0,  Math.PI / 2),
-  makeCloset(-3.5, 1.1, -10, -3 * Math.PI / 4),
-];
-
-// Rough AABB colliders so Lia can't walk through the closets
-// Closet #1 (rotated 90°): original 1.0×0.8 → world Z×X
-wallColliders.push(new THREE.Box3(new THREE.Vector3(4.4, 0, -0.5),  new THREE.Vector3(5.2, 2.2, 0.5)));
-// Closet #2 (rotated 135°): conservative 0.7×0.7 footprint
-wallColliders.push(new THREE.Box3(new THREE.Vector3(-4.2, 0, -10.7), new THREE.Vector3(-2.8, 2.2, -9.3)));
-
 // ─── Camera & player object ───────────────────────────────────────────────────
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.05, 200);
 
@@ -792,17 +717,304 @@ const candles = [
   makeCandle(0.5,   1.59, -14.7), // LR fireplace mantle (top of firebox, near front edge)
 ];
 
-// TEMP: visibility test sphere — confirms emissive enemy materials work in dim lighting
-// Remove when first enemy is implemented (Prompt #6)
-const _tempSphere = new THREE.Mesh(
-  new THREE.SphereGeometry(0.15, 12, 10),
-  new THREE.MeshStandardMaterial({ color: 0x00ff44, emissive: 0x00ff44, emissiveIntensity: 2.0, roughness: 0.5, metalness: 0 })
-);
-_tempSphere.position.set(0, 1.5, -2);
-scene.add(_tempSphere);
-const _tempLight = new THREE.PointLight(0x00ff44, 0.4, 4);
-_tempLight.position.set(0, 1.5, -2);
-scene.add(_tempLight);
+// ─── PENNY THE PINK-BOW BEANIE ────────────────────────────────────────────────
+function createPenny() {
+  const group = new THREE.Group();
+  group.name = 'penny';
+
+  // Body — sickly pale yellow-green fart-cloud sphere, squashed slightly
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: 0x9bb540, emissive: 0x9bb540, emissiveIntensity: 1.8,
+    roughness: 0.6, metalness: 0.0
+  });
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), bodyMat);
+  body.scale.y = 0.85;
+  body.position.set(0, 0.6, 0);
+  group.add(body);
+  group.userData.body = body;
+
+  // Eyes — children of body
+  const eyeMat = () => new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.3, metalness: 0 });
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat());
+  // Body is at (0,0.6,0) with scale.y=0.85, so eye world-relative = body-relative + body offset
+  // Spec gives "relative to group" positions; convert to body-local by subtracting body.position
+  // and dividing by body.scale.y for Y. Simpler: position eyes in body-local that maps to spec.
+  leftEye.position.set(-0.13, (0.7 - 0.6) / 0.85, 0.32 / 1); // y compensated for body scale
+  body.add(leftEye);
+  const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat());
+  rightEye.position.set(0.13, (0.7 - 0.6) / 0.85, 0.32 / 1);
+  body.add(rightEye);
+  group.userData.leftEye = leftEye;
+  group.userData.rightEye = rightEye;
+
+  // Pink bow on top — small group of 3 sub-meshes
+  const bow = new THREE.Group();
+  bow.position.set(0, 1.05, 0);
+  const bowMat = new THREE.MeshStandardMaterial({
+    color: 0xff6b9d, emissive: 0xff6b9d, emissiveIntensity: 0.2,
+    roughness: 0.5, metalness: 0
+  });
+  const bowKnot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bowMat);
+  bow.add(bowKnot);
+  const bowLoopL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.05), bowMat);
+  bowLoopL.position.set(-0.12, 0, 0);
+  bowLoopL.rotation.z = Math.PI / 9; // +20°
+  bow.add(bowLoopL);
+  const bowLoopR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.05), bowMat);
+  bowLoopR.position.set(0.12, 0, 0);
+  bowLoopR.rotation.z = -Math.PI / 9; // -20°
+  bow.add(bowLoopR);
+  group.add(bow);
+  group.userData.bow = bow;
+
+  // Glow point light per Enemy Visibility Standard
+  const glow = new THREE.PointLight(0x9bb540, 0.6, 4);
+  glow.position.set(0, 0.6, 0);
+  group.add(glow);
+
+  // Fart-puff aura — larger soft transparent cloud around body
+  const fartMat = new THREE.MeshStandardMaterial({
+    color: 0x9bb540, emissive: 0x9bb540, emissiveIntensity: 0.4,
+    roughness: 0.6, metalness: 0,
+    transparent: true, opacity: 0.15, depthWrite: false
+  });
+  const fartCloud = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), fartMat);
+  fartCloud.scale.y = 0.85;
+  fartCloud.position.set(0, 0.6, 0);
+  group.add(fartCloud);
+  group.userData.fartCloud = fartCloud;
+
+  return group;
+}
+
+const penny = createPenny();
+penny.position.set(0, 0, -2);
+penny.rotation.y = Math.PI; // facing -Z (toward Living Room)
+scene.add(penny);
+
+// Penny patrol waypoints — 4-point circuit through Lobby + Living Room
+const pennyWaypoints = [
+  new THREE.Vector3(0,    0, -2),   // Lobby north
+  new THREE.Vector3(0,    0, -10),  // Living Room center (in front of couch)
+  new THREE.Vector3(-2,   0, -13),  // Living Room near fireplace
+  new THREE.Vector3(2,    0, -10),  // Living Room east side
+];
+
+let pennyState = 'PATROL'; // 'PATROL' | 'SUSPICIOUS' | 'CHASE' | 'STUNNED'
+let pennyWaypointIndex = 0;
+let pennyStateTimer = 0;
+let pennyChaseTimer = 0;
+let pennyLastSeenPosition = new THREE.Vector3();
+
+const PENNY_PATROL_SPEED = 1.2;
+const PENNY_CHASE_SPEED_INITIAL = 2.5;
+const PENNY_CHASE_SPEED_MAX = 4.0;
+let pennyCurrentChaseSpeed = PENNY_CHASE_SPEED_INITIAL;
+
+let timeSinceStoppedMoving = 0;
+let deathCount = 0;
+let limboCleared = false;
+let lastPennySeesLia = false; // cached for debug overlay
+
+function transitionPennyTo(newState) {
+  pennyState = newState;
+  pennyStateTimer = 0;
+  pennyChaseTimer = 0;
+  pennyCurrentChaseSpeed = PENNY_CHASE_SPEED_INITIAL;
+
+  if (newState === 'CHASE') {
+    penny.userData.leftEye.material.color.setHex(0xcc0033);
+    penny.userData.leftEye.material.emissive.setHex(0xcc0033);
+    penny.userData.leftEye.material.emissiveIntensity = 1.5;
+    penny.userData.rightEye.material.color.setHex(0xcc0033);
+    penny.userData.rightEye.material.emissive.setHex(0xcc0033);
+    penny.userData.rightEye.material.emissiveIntensity = 1.5;
+  } else {
+    penny.userData.leftEye.material.color.setHex(0x0a0a0a);
+    penny.userData.leftEye.material.emissive.setHex(0x000000);
+    penny.userData.leftEye.material.emissiveIntensity = 0;
+    penny.userData.rightEye.material.color.setHex(0x0a0a0a);
+    penny.userData.rightEye.material.emissive.setHex(0x000000);
+    penny.userData.rightEye.material.emissiveIntensity = 0;
+    penny.userData.fartCloud.material.opacity = 0.15;
+  }
+}
+
+const _pennyToTarget = new THREE.Vector3();
+const _pennyForward  = new THREE.Vector3();
+const _pennyToLia    = new THREE.Vector3();
+const _pennyEyePos   = new THREE.Vector3();
+const _pennyLosDir   = new THREE.Vector3();
+const _liaWorldPos   = new THREE.Vector3();
+
+function checkPennySeesLia() {
+  const liaPos = isTouchDevice ? playerObj.position : camera.position;
+
+  const isMoving = (Math.abs(moveState.forward) > 0.01 || Math.abs(moveState.right) > 0.01);
+  const liaStill = !isMoving && timeSinceStoppedMoving > 1.0;
+
+  let detectRange, detectCone;
+  if (flashlightOn && isMoving)        { detectRange = 8; detectCone = Math.PI / 2; }       // 90°
+  else if (flashlightOn && !isMoving)  { detectRange = 6; detectCone = Math.PI * 0.42; }    // ~75°
+  else if (!flashlightOn && isMoving)  { detectRange = 5; detectCone = Math.PI * 0.25; }    // 45°
+  else                                  { detectRange = 3; detectCone = Math.PI * 0.14; }    // 25° (liaStill)
+
+  _pennyToLia.set(liaPos.x - penny.position.x, 0, liaPos.z - penny.position.z);
+  const dist = _pennyToLia.length();
+  if (dist > detectRange) return false;
+  if (dist < 0.0001) return true;
+
+  _pennyForward.set(0, 0, 1).applyEuler(new THREE.Euler(0, penny.rotation.y, 0));
+  _pennyToLia.divideScalar(dist);
+  const dot = _pennyForward.dot(_pennyToLia);
+  if (dot < Math.cos(detectCone / 2)) return false;
+
+  // Line-of-sight raycast from Penny's left eye to Lia's head
+  penny.userData.leftEye.getWorldPosition(_pennyEyePos);
+  _liaWorldPos.set(liaPos.x, 1.5, liaPos.z);
+  _pennyLosDir.subVectors(_liaWorldPos, _pennyEyePos);
+  const losDist = _pennyLosDir.length();
+  if (losDist < 0.0001) return true;
+  _pennyLosDir.divideScalar(losDist);
+  const losRay = new THREE.Raycaster(_pennyEyePos, _pennyLosDir, 0, losDist);
+  const hits = losRay.intersectObjects(wallMeshes, false);
+  if (hits.length > 0) return false;
+
+  return true;
+}
+
+function updatePenny(delta, elapsedTime) {
+  pennyStateTimer += delta;
+
+  if (pennyState === 'PATROL') {
+    const target = pennyWaypoints[pennyWaypointIndex];
+    _pennyToTarget.set(target.x - penny.position.x, 0, target.z - penny.position.z);
+    const dist = _pennyToTarget.length();
+    if (dist < 0.3) {
+      pennyWaypointIndex = (pennyWaypointIndex + 1) % pennyWaypoints.length;
+    } else {
+      _pennyToTarget.divideScalar(dist);
+      penny.position.x += _pennyToTarget.x * PENNY_PATROL_SPEED * delta;
+      penny.position.z += _pennyToTarget.z * PENNY_PATROL_SPEED * delta;
+      penny.rotation.y = Math.atan2(_pennyToTarget.x, _pennyToTarget.z);
+    }
+
+    if (checkPennySeesLia()) {
+      const liaPos = isTouchDevice ? playerObj.position : camera.position;
+      pennyLastSeenPosition.set(liaPos.x, 0, liaPos.z);
+      transitionPennyTo('SUSPICIOUS');
+    }
+  }
+
+  else if (pennyState === 'SUSPICIOUS') {
+    const liaPos = isTouchDevice ? playerObj.position : camera.position;
+    _pennyToLia.set(liaPos.x - penny.position.x, 0, liaPos.z - penny.position.z);
+    if (_pennyToLia.lengthSq() > 0.0001) {
+      penny.rotation.y = Math.atan2(_pennyToLia.x, _pennyToLia.z);
+    }
+    if (pennyStateTimer < 2.5) {
+      if (checkPennySeesLia()) {
+        pennyLastSeenPosition.set(liaPos.x, 0, liaPos.z);
+        transitionPennyTo('CHASE');
+      }
+    } else {
+      transitionPennyTo('PATROL');
+    }
+  }
+
+  else if (pennyState === 'CHASE') {
+    pennyCurrentChaseSpeed = Math.min(
+      PENNY_CHASE_SPEED_MAX,
+      PENNY_CHASE_SPEED_INITIAL + pennyStateTimer * 0.3
+    );
+
+    penny.userData.fartCloud.material.opacity = 0.15 + Math.sin(elapsedTime * 6) * 0.1;
+
+    const liaPos = isTouchDevice ? playerObj.position : camera.position;
+    if (checkPennySeesLia()) {
+      pennyLastSeenPosition.set(liaPos.x, 0, liaPos.z);
+      pennyChaseTimer = 0;
+    } else {
+      pennyChaseTimer += delta;
+    }
+
+    _pennyToTarget.set(
+      pennyLastSeenPosition.x - penny.position.x,
+      0,
+      pennyLastSeenPosition.z - penny.position.z
+    );
+    const dist = _pennyToTarget.length();
+    if (dist > 0.2) {
+      _pennyToTarget.divideScalar(dist);
+      penny.position.x += _pennyToTarget.x * pennyCurrentChaseSpeed * delta;
+      penny.position.z += _pennyToTarget.z * pennyCurrentChaseSpeed * delta;
+      penny.rotation.y = Math.atan2(_pennyToTarget.x, _pennyToTarget.z);
+    }
+
+    const distToLia = Math.hypot(
+      liaPos.x - penny.position.x,
+      liaPos.z - penny.position.z
+    );
+    if (distToLia < 0.7) {
+      triggerCaught();
+      return;
+    }
+
+    if (pennyChaseTimer > 3.0 || pennyStateTimer > 12.0) {
+      transitionPennyTo('PATROL');
+    }
+  }
+}
+
+// ─── Caught & respawn mechanic ────────────────────────────────────────────────
+function triggerCaught() {
+  movementLocked = true;
+  deathCount++;
+
+  const flashEl = document.getElementById('caught-flash');
+  flashEl.style.display = 'block';
+  flashEl.style.opacity = '0.7';
+
+  setTimeout(() => {
+    if (controls) {
+      camera.position.set(0, 1.6, 0);
+      camera.rotation.set(0, 0, 0);
+    } else {
+      mobileYaw.value = 0;
+      mobilePitch.value = 0;
+    }
+    playerObj.position.set(0, 0, 0);
+
+    transitionPennyTo('PATROL');
+    movementLocked = false;
+
+    flashEl.style.opacity = '0';
+    setTimeout(() => { flashEl.style.display = 'none'; }, 400);
+  }, 500);
+}
+
+// ─── Limbo Hall win condition ─────────────────────────────────────────────────
+function checkLimboWin() {
+  if (limboCleared) return;
+  if (candleCount >= 2) {
+    limboCleared = true;
+    showLimboVictoryScreen();
+  }
+}
+
+function showLimboVictoryScreen() {
+  const el = document.getElementById('limbo-victory');
+  el.style.display = 'flex';
+  if (controls) controls.unlock();
+
+  const dismiss = () => {
+    el.style.display = 'none';
+    window.removeEventListener('keydown', dismiss);
+    window.removeEventListener('click', dismiss);
+  };
+  window.addEventListener('keydown', dismiss);
+  window.addEventListener('click', dismiss);
+}
 
 // ─── HUD room element ─────────────────────────────────────────────────────────
 const hudRoom      = document.getElementById('hud-room');
@@ -832,103 +1044,34 @@ function lightCandle(candle) {
 }
 
 function tryInteract() {
-  // Priority 1: exit closet — always works
-  if (hiddenInCloset !== null) { exitCloset(); return; }
+  if (movementLocked) return;
 
   const pos = isTouchDevice ? playerObj.position : camera.position;
   camera.getWorldDirection(_fwd);
 
-  // Find best candidate among all interactables based on distance + facing
-  let bestTarget = null;     // { type: 'candle' | 'closet', ref, distance }
-  let bestScore = Infinity;  // lower = better; we'll subtract bias for closets
+  // Only interactable now: unlit candles (require flashlight ON)
+  if (!flashlightOn) return;
 
-  const fwdH = _fwd.clone(); fwdH.y = 0;
-  if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
-
-  // Candidate: candles (requires flashlight ON)
-  if (flashlightOn) {
-    for (const candle of candles) {
-      if (candle.userData.lit) continue;
-      _toCandle.subVectors(candle.position, pos);
-      const dist = _toCandle.length();
-      if (dist > 2.5) continue;
-      _toCandle.normalize();
-      if (_fwd.dot(_toCandle) < 0.5) continue;
-      if (dist < bestScore) {
-        bestScore = dist;
-        bestTarget = { type: 'candle', ref: candle, distance: dist };
-      }
-    }
-  }
-
-  // Candidate: closets (does NOT require flashlight — emergency hide)
-  for (const closet of closets) {
-    _toCloset.subVectors(closet.position, pos); _toCloset.y = 0;
-    const dist = _toCloset.length();
+  let bestCandle = null;
+  let bestDist = Infinity;
+  for (const candle of candles) {
+    if (candle.userData.lit) continue;
+    _toCandle.subVectors(candle.position, pos);
+    const dist = _toCandle.length();
     if (dist > 2.5) continue;
-    _toCloset.normalize();
-    if (fwdH.dot(_toCloset) < 0.3) continue;
-    // Closets get a 0.5-unit bonus (subtract from effective score) — hiding is emergency-priority
-    const effectiveScore = dist - 0.5;
-    if (effectiveScore < bestScore) {
-      bestScore = effectiveScore;
-      bestTarget = { type: 'closet', ref: closet, distance: dist };
+    _toCandle.normalize();
+    if (_fwd.dot(_toCandle) < 0.5) continue;
+    if (dist < bestDist) {
+      bestDist = dist;
+      bestCandle = candle;
     }
   }
 
-  // Act on the winner
-  if (bestTarget === null) return;
-  if (bestTarget.type === 'candle') {
-    lightCandle(bestTarget.ref);
-    candleCount++;
-    hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
-  } else if (bestTarget.type === 'closet') {
-    enterCloset(bestTarget.ref);
-  }
-}
-
-function enterCloset(closet) {
-  const pos = isTouchDevice ? playerObj.position : camera.position;
-  closet.userData.previousPosition = pos.clone();
-  closet.userData.prevCameraRotX   = camera.rotation.x;
-
-  // Place camera at peek slot height, ~0.2 units behind front panel (local 0, 0.4, 0.18)
-  const interior = new THREE.Vector3(0, 0.4, 0.18)
-    .applyEuler(new THREE.Euler(0, closet.rotation.y, 0))
-    .add(closet.position);
-  camera.position.set(interior.x, interior.y, interior.z);
-  playerObj.position.set(interior.x, 0, interior.z);
-
-  // Orient camera to face doors
-  // Note: PLC r134+ removed getObject(); camera is rotated directly.
-  if (controls) {
-    camera.rotation.y = closet.rotation.y;
-    camera.rotation.x = -0.05;
-  } else {
-    mobileYaw.value   = closet.rotation.y;
-    mobilePitch.value = -0.05;
-  }
-
-  movementLocked = true;
-
-  hiddenInCloset = closet;
-  playerObj.userData.isHidden = true;
-}
-
-function exitCloset() {
-  const closet = hiddenInCloset;
-  hiddenInCloset = null;          // clear FIRST so same-frame checks see "not hidden"
-  playerObj.userData.isHidden = false;
-
-  const doorDir = new THREE.Vector3(0, 0, 1)
-    .applyEuler(new THREE.Euler(0, closet.rotation.y, 0));
-  const exitPos = closet.userData.previousPosition.clone()
-    .addScaledVector(doorDir, 0.7);
-  camera.position.set(exitPos.x, 1.6, exitPos.z);
-  playerObj.position.set(exitPos.x, 0, exitPos.z);
-
-  camera.rotation.x = 0;         // clear pressed-against-door tilt completely
-  movementLocked = false;
+  if (bestCandle === null) return;
+  lightCandle(bestCandle);
+  candleCount++;
+  hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
+  checkLimboWin();
 }
 
 // ─── Reusable vectors ─────────────────────────────────────────────────────────
@@ -937,7 +1080,6 @@ const _right      = new THREE.Vector3();
 const _up         = new THREE.Vector3(0, 1, 0);
 const _testSphere = new THREE.Sphere(new THREE.Vector3(), 0.3);
 const _toCandle   = new THREE.Vector3();
-const _toCloset   = new THREE.Vector3();
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
 function animate() {
@@ -974,7 +1116,7 @@ function animate() {
   if (isTouchDevice) {
     camera.quaternion.setFromEuler(new THREE.Euler(mobilePitch.value, mobileYaw.value, 0, 'YXZ'));
 
-    if (Math.abs(moveState.forward) > 0.01 || Math.abs(moveState.right) > 0.01) {
+    if (!movementLocked && (Math.abs(moveState.forward) > 0.01 || Math.abs(moveState.right) > 0.01)) {
       const speed = mobileSprint ? WALK_SPEED * SPRINT_MULT : WALK_SPEED;
 
       _fwd.set(Math.sin(mobileYaw.value), 0, Math.cos(mobileYaw.value)).negate();
@@ -1023,38 +1165,32 @@ function animate() {
     hudRoom.textContent = 'Room: ' + getCurrentRoom(camera.position.x, camera.position.z);
   }
 
-  // Pitch clamp while hiding — ±15° so peeking doesn't look straight up/down
-  if (hiddenInCloset !== null) {
-    const pitchLimit = Math.PI / 12;
-    if (!isTouchDevice) {
-      camera.rotation.x = Math.max(-pitchLimit, Math.min(pitchLimit, camera.rotation.x));
-    } else {
-      mobilePitch.value = Math.max(-pitchLimit, Math.min(pitchLimit, mobilePitch.value));
-      camera.quaternion.setFromEuler(new THREE.Euler(mobilePitch.value, mobileYaw.value, 0, 'YXZ'));
-    }
+  // ── Track still-time (used by Penny's vision cone) ───────────────────────
+  const isMovingThisFrame = (Math.abs(moveState.forward) > 0.01 || Math.abs(moveState.right) > 0.01);
+  if (movementLocked || isMovingThisFrame) {
+    timeSinceStoppedMoving = 0;
+  } else {
+    timeSinceStoppedMoving += dt;
   }
 
-  // ── Interact-prompt telegraphing (distance-based priority) ─────────────
-  const promptPos = isTouchDevice ? playerObj.position : camera.position;
-  camera.getWorldDirection(_fwd);
+  // ── Penny: hover anim + AI ───────────────────────────────────────────────
+  penny.userData.body.position.y = 0.6 + Math.sin(t * 1.5) * 0.05;
+  penny.userData.bow.rotation.z  = Math.sin(t * 2) * 0.08;
 
-  // Always-on hard guard: when hidden, only show "get out"
-  if (hiddenInCloset !== null) {
-    interactPrompt.textContent = 'Press E to get out';
-    interactPrompt.style.display = 'block';
-    // Clear any closet emissives so they don't linger
-    for (const c of closets) {
-      c.userData.panelMat.emissive.setHex(0x000000);
-      c.userData.panelMat.emissiveIntensity = 0;
-    }
+  if (!movementLocked) {
+    updatePenny(dt, t);
+  }
+  lastPennySeesLia = movementLocked ? false : checkPennySeesLia();
+
+  // ── Interact-prompt telegraphing (candles only) ───────────────────────────
+  if (movementLocked) {
+    interactPrompt.style.display = 'none';
   } else {
-    const fwdH = new THREE.Vector3(_fwd.x, 0, _fwd.z);
-    if (fwdH.lengthSq() > 0.0001) fwdH.normalize();
+    const promptPos = isTouchDevice ? playerObj.position : camera.position;
+    camera.getWorldDirection(_fwd);
 
-    // Find the same "best target" as tryInteract() would
-    let best = null;  // { type, ref, distance, score }
-    let bestScore = Infinity;
-
+    let bestCandle = null;
+    let bestDist = Infinity;
     if (flashlightOn) {
       for (const candle of candles) {
         if (candle.userData.lit) continue;
@@ -1063,45 +1199,18 @@ function animate() {
         if (d > 2.5) continue;
         tc.normalize();
         if (_fwd.dot(tc) < 0.5) continue;
-        if (d < bestScore) {
-          bestScore = d;
-          best = { type: 'candle', ref: candle, distance: d };
+        if (d < bestDist) {
+          bestDist = d;
+          bestCandle = candle;
         }
       }
     }
 
-    for (const closet of closets) {
-      _toCloset.subVectors(closet.position, promptPos); _toCloset.y = 0;
-      const d = _toCloset.length();
-      if (d > 2.5) continue;
-      _toCloset.normalize();
-      if (fwdH.dot(_toCloset) < 0.3) continue;
-      const effScore = d - 0.5; // closet bias
-      if (effScore < bestScore) {
-        bestScore = effScore;
-        best = { type: 'closet', ref: closet, distance: d };
-      }
-    }
-
-    // Reset all closet emissives first, then highlight winner if it's a closet
-    for (const c of closets) {
-      c.userData.panelMat.emissive.setHex(0x000000);
-      c.userData.panelMat.emissiveIntensity = 0;
-    }
-
-    if (best === null) {
+    if (bestCandle === null) {
       interactPrompt.style.display = 'none';
-    } else if (best.type === 'candle') {
+    } else {
       interactPrompt.textContent = 'Press E to light candle';
       interactPrompt.style.display = 'block';
-    } else if (best.type === 'closet') {
-      interactPrompt.textContent = 'Press E to hide';
-      interactPrompt.style.display = 'block';
-      // Visual telegraph: blue glow on the closet's panel (only when flashlight on, to keep the "dark hide" mood)
-      if (flashlightOn) {
-        best.ref.userData.panelMat.emissive.setHex(0x5a6a8a);
-        best.ref.userData.panelMat.emissiveIntensity = 0.35;
-      }
     }
   }
 
@@ -1112,32 +1221,20 @@ function animate() {
     const camForward = new THREE.Vector3();
     camera.getWorldDirection(camForward);
 
-    let nearestClosetLabel = 'none';
-    let nearestClosetDist = Infinity;
-    for (let i = 0; i < closets.length; i++) {
-      const d = pos.distanceTo(closets[i].position);
-      if (d < nearestClosetDist) { nearestClosetDist = d; nearestClosetLabel = 'closet_' + i; }
-    }
-
-    let nearestCandleLabel = 'none';
-    let nearestCandleDist = Infinity;
-    for (let i = 0; i < candles.length; i++) {
-      if (candles[i].userData.lit) continue;
-      const d = pos.distanceTo(candles[i].position);
-      if (d < nearestCandleDist) { nearestCandleDist = d; nearestCandleLabel = 'candle_' + i; }
-    }
-
-    const promptVisible = interactPrompt.style.display !== 'none';
+    const distPennyLia = Math.hypot(pos.x - penny.position.x, pos.z - penny.position.z);
 
     debugEl.textContent =
-      `hidden: ${hiddenInCloset ? ('closet_' + closets.indexOf(hiddenInCloset)) : 'null'}\n` +
       `pos:   x=${pos.x.toFixed(2)} y=${pos.y.toFixed(2)} z=${pos.z.toFixed(2)}\n` +
       `look:  x=${camForward.x.toFixed(2)} z=${camForward.z.toFixed(2)}\n` +
       `flash: ${flashlightOn ? 'ON' : 'off'}\n` +
-      `move-lock: ${movementLocked ? 'LOCKED' : 'free'}\n` +
-      `near closet: ${nearestClosetLabel} d=${nearestClosetDist.toFixed(2)}\n` +
-      `near candle: ${nearestCandleLabel} d=${nearestCandleDist.toFixed(2)}\n` +
-      `prompt: ${promptVisible ? '"' + interactPrompt.textContent + '"' : 'hidden'}`;
+      `still-time: ${timeSinceStoppedMoving.toFixed(2)}s\n` +
+      `penny-state: ${pennyState}\n` +
+      `penny-pos: x=${penny.position.x.toFixed(2)} z=${penny.position.z.toFixed(2)}\n` +
+      `penny-dist: ${distPennyLia.toFixed(2)}\n` +
+      `penny-sees-lia: ${lastPennySeesLia ? 'true' : 'false'}\n` +
+      `candles: ${candleCount}/2\n` +
+      `deaths: ${deathCount}\n` +
+      `limbo-cleared: ${limboCleared ? 'true' : 'false'}`;
   }
 
   renderer.render(scene, camera);

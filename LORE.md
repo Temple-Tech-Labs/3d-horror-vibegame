@@ -99,3 +99,35 @@ This is achieved via:
 The reasoning: hiding-and-peeking only works if the player can actually SEE the threat passing by from a hiding spot. If enemies blend into darkness, the entire hide mechanic loses its payoff.
 
 This rule is binding for Prompt #6+ (when enemies are introduced).
+
+## Defensive Mechanic — LOCKED (Prompt #6)
+
+Lia's defensive options against the Beanies use a "Be Still in Shadow" stealth pattern:
+
+- **Flashlight ON, moving**: highly visible. Beanies detect at 8 units with ~90° cone.
+- **Flashlight ON, standing still**: visible at distance. Beanies detect at 6 units with ~75° cone.
+- **Flashlight OFF, moving**: low profile. Beanies detect at 5 units with ~45° cone.
+- **Flashlight OFF, standing still (1+ seconds)**: hardest to detect. Beanies detect at 3 units with ~25° cone (near face-to-face required).
+
+Detection always confirmed via raycast from Beanie's "eyes" to Lia — walls block line of sight.
+
+Tactical reading for the player: turn off the flashlight and stop moving when a Beanie is near. Move and use lantern only when safe.
+
+## Closets — Deferred to Polish Phase
+
+Closets are deferred to Prompt #11+ (polish phase). Known issues to revisit:
+- Rotation math caused closets to face into walls instead of into rooms
+- Camera teleport math during enter/exit was unreliable in Three.js r184+
+- Peek window only renders correctly when closet faces an open room
+
+When closets return, they will be VISUAL set dressing first (non-interactive), and become interactive only after the rotation math is independently verified per-instance.
+
+## Caught & Respawn — LOCKED (Prompt #6)
+
+When a Beanie catches Lia:
+- Brief red screen flash (0.5 sec)
+- Lia respawns at Lobby spawn (0, 1.6, 0)
+- The Beanie returns to her current waypoint (not reset to start — feels fair)
+- Candle progress is PRESERVED (forgiving roguelite rule)
+- Death counter increments (visible on debug overlay)
+- No "Game Over" screen yet — instant respawn for v1. Full pause/death menu comes in Prompt #11 (polish)
