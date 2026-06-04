@@ -736,13 +736,13 @@ function createPenny() {
   // Eyes — children of body
   const eyeMat = () => new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.3, metalness: 0 });
   const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat());
-  // Body is at (0,0.6,0) with scale.y=0.85, so eye world-relative = body-relative + body offset
-  // Spec gives "relative to group" positions; convert to body-local by subtracting body.position
-  // and dividing by body.scale.y for Y. Simpler: position eyes in body-local that maps to spec.
-  leftEye.position.set(-0.13, (0.7 - 0.6) / 0.85, 0.32 / 1); // y compensated for body scale
+  leftEye.scale.set(1, 2, 1);
+  // Position pushed out to z=0.41 to sit flush with the 0.45 radius body surface
+  leftEye.position.set(-0.15, (0.7 - 0.6) / 0.85, 0.41); 
   body.add(leftEye);
   const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat());
-  rightEye.position.set(0.13, (0.7 - 0.6) / 0.85, 0.32 / 1);
+  rightEye.scale.set(1, 2, 1);
+  rightEye.position.set(0.15, (0.7 - 0.6) / 0.85, 0.41);
   body.add(rightEye);
   group.userData.leftEye = leftEye;
   group.userData.rightEye = rightEye;
@@ -828,6 +828,13 @@ function transitionPennyTo(newState) {
     penny.userData.leftEye.material.emissiveIntensity = 1.5;
     penny.userData.rightEye.material.color.setHex(0xcc0033);
     penny.userData.rightEye.material.emissive.setHex(0xcc0033);
+    penny.userData.rightEye.material.emissiveIntensity = 1.5;
+  } else if (newState === 'SUSPICIOUS') {
+    penny.userData.leftEye.material.color.setHex(0xffcc00);
+    penny.userData.leftEye.material.emissive.setHex(0xffcc00);
+    penny.userData.leftEye.material.emissiveIntensity = 1.5;
+    penny.userData.rightEye.material.color.setHex(0xffcc00);
+    penny.userData.rightEye.material.emissive.setHex(0xffcc00);
     penny.userData.rightEye.material.emissiveIntensity = 1.5;
   } else {
     penny.userData.leftEye.material.color.setHex(0x0a0a0a);
