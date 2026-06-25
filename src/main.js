@@ -71,14 +71,30 @@ for (let i = 0; i < 9; i++) {
   scene.add(seam);
 }
 
-// ─── Ceiling ─────────────────────────────────────────────────────────────────
-const ceilMesh = new THREE.Mesh(
-  new THREE.PlaneGeometry(30, 30),
-  new THREE.MeshStandardMaterial({ color: 0x1a0d2e, roughness: 0.95, metalness: 0 })
-);
-ceilMesh.rotation.x = Math.PI / 2;
-ceilMesh.position.y = 4;
-scene.add(ceilMesh);
+// ─── Ground Floor Ceiling / 1st Floor Floor ──────────────────────────────────
+const ceilMat = new THREE.MeshStandardMaterial({ color: 0x1a0d2e, roughness: 0.95, metalness: 0 });
+const floor1Mat = new THREE.MeshStandardMaterial({ color: 0x4a2e1a, roughness: 0.9, metalness: 0 });
+
+function makeFloorCeilPair(w, d, cx, cz) {
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ceilMat);
+  ceil.rotation.x = Math.PI / 2;
+  ceil.position.set(cx, 3.98, cz);
+  scene.add(ceil);
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), floor1Mat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(cx, 4, cz);
+  floor.receiveShadow = true;
+  scene.add(floor);
+}
+
+// Left side: x[-15, 0], z[-15, 5] => w=15, d=20, cx=-7.5, cz=-5
+makeFloorCeilPair(15, 20, -7.5, -5);
+// Front right: x[0, 5], z[-6, 5] => w=5, d=11, cx=2.5, cz=-0.5
+makeFloorCeilPair(5, 11, 2.5, -0.5);
+// Back right: x[0, 5], z[-15, -11] => w=5, d=4, cx=2.5, cz=-13
+makeFloorCeilPair(5, 4, 2.5, -13);
+// This leaves a hole at x[0,5], z[-11,-6] for the stairs.
 
 // ─── Wall helpers ─────────────────────────────────────────────────────────────
 //
@@ -160,6 +176,67 @@ makeWall(-3, 2, -5, 4, 4, 0.3);
 makeWall(3, 2, -5, 4, 4, 0.3);
 // Lobby/Living Room lintel (y[3,4], doorway at x[-1,1])
 makeWall(0, 3.5, -5, 2, 1, 0.3);
+
+// ─── 1ST FLOOR CEILING (Y=8) ──────────────────────────────────────────────────
+const ceilMesh2 = new THREE.Mesh(
+  new THREE.PlaneGeometry(30, 30),
+  new THREE.MeshStandardMaterial({ color: 0x1a0d2e, roughness: 0.95, metalness: 0 })
+);
+ceilMesh2.rotation.x = Math.PI / 2;
+ceilMesh2.position.y = 8;
+scene.add(ceilMesh2);
+
+// ─── 1ST FLOOR OUTER WALLS (Y=6) ──────────────────────────────────────────────
+// North: x[-5,5], z=-15 (Library north)
+makeWall(0, 6, -15, 10, 4, 0.3);
+// North sealed NW corner: x[-15,-5], z=-15
+makeWall(-10, 6, -15, 10, 4, 0.3);
+// East: x=5, z[-15,5]
+makeWall(5, 6, -5, 0.3, 4, 20);
+// West: x=-15, z[-15,5]
+makeWall(-15, 6, -5, 0.3, 4, 20);
+// South: x[-15,5], z=5
+makeWall(-5, 6, 5, 20, 4, 0.3);
+
+// ─── 1ST FLOOR INTERIOR WALLS (Y=6) ───────────────────────────────────────────
+// Hallway / Playroom divider (x=-5, z[-5,5])
+makeWall(-5, 6, -3.5, 0.3, 4, 3);
+makeWall(-5, 6,  3.5, 0.3, 4, 3);
+makeWall(-5, 7.5,  0, 0.3, 1, 4);
+
+// Hallway / Dorm 2 divider (x=-5, z[-15,-5])
+makeWall(-5, 6, -13, 0.3, 4, 4);
+makeWall(-5, 6, -6.5, 0.3, 4, 3);
+makeWall(-5, 7.5, -9.5, 0.3, 1, 3);
+
+// Hallway / Library divider (z=-11, x[-5,5])
+makeWall(2.5, 6, -11, 5, 4, 0.3);
+makeWall(-4.5, 6, -11, 1, 4, 0.3);
+makeWall(-2, 7.5, -11, 4, 1, 0.3);
+
+// Dorms / Playroom divider (z=-5, x[-15,-5])
+makeWall(-10, 6, -5, 10, 4, 0.3);
+
+// Dorm 1 / Dorm 2 divider (x=-10, z[-15,-5])
+makeWall(-10, 6, -13.5, 0.3, 4, 3);
+makeWall(-10, 6, -6.5,  0.3, 4, 3);
+makeWall(-10, 7.5, -10, 0.3, 1, 4);
+
+// ─── 1ST FLOOR LIGHTING ───────────────────────────────────────────────────────
+// Playroom light
+const playroomLight = new THREE.PointLight(0xff8847, 0.8, 10);
+playroomLight.position.set(-10, 7, 0);
+scene.add(playroomLight);
+
+// Dorms moonlight
+const dormMoon = new THREE.PointLight(0x7a8aaa, 1.2, 12);
+dormMoon.position.set(-10, 7, -10);
+scene.add(dormMoon);
+
+// Library light
+const libraryLight = new THREE.PointLight(0xff8847, 0.8, 8);
+libraryLight.position.set(0, 7, -13);
+scene.add(libraryLight);
 
 // ─── WAINSCOTING (y=2.5 interior-face strips) ────────────────────────────────
 // addWainscot uses Object.assign to set position — need to do it properly:
@@ -363,15 +440,7 @@ for (let i = 0; i < 5; i++) {
   scene.add(step);
 }
 
-// Banister cap at top of stairs — red emissive (blocked indicator)
-const banisterCap = new THREE.Mesh(
-  new THREE.BoxGeometry(0.2, 0.2, 0.2),
-  new THREE.MeshStandardMaterial({
-    color: 0xcc0033, emissive: 0xcc0033, emissiveIntensity: 0.8, roughness: 0.4, metalness: 0
-  })
-);
-banisterCap.position.set(0.2, 4.1, -10.6);
-scene.add(banisterCap);
+// Banister cap removed (stairs are now open to 1st floor)
 
 // ─── STAIRS DOWN (Lobby floor, near south wall) ───────────────────────────────
 
@@ -421,11 +490,6 @@ wallColliders.push(new THREE.Box3(
 wallColliders.push(new THREE.Box3(
   new THREE.Vector3(-1, -0.5, 2),
   new THREE.Vector3(1, 2, 4)
-));
-// Stairs up (blocks climbing east staircase in LR)
-wallColliders.push(new THREE.Box3(
-  new THREE.Vector3(0, 0, -11),
-  new THREE.Vector3(5, 4, -6)
 ));
 
 // ─── Camera & player object ───────────────────────────────────────────────────
@@ -516,6 +580,7 @@ function syncMoveStateFromKeys() {
 
 let mobileSprint   = false;
 let gameStarted    = false;
+let isPaused       = false;
 let flashlightOn   = false;
 let candleCount    = 0;
 let movementLocked = false;
@@ -535,8 +600,8 @@ if (!isTouchDevice) {
 
   controls = new PointerLockControls(camera, renderer.domElement);
 
-  controls.addEventListener('lock',   () => { lockOverlay.classList.add('hidden'); });
-  controls.addEventListener('unlock', () => { if (gameStarted) lockOverlay.classList.remove('hidden'); });
+  controls.addEventListener('lock',   () => { lockOverlay.classList.add('hidden'); isPaused = false; });
+  controls.addEventListener('unlock', () => { if (gameStarted && !limboCleared) { lockOverlay.classList.remove('hidden'); isPaused = true; } });
 
   renderer.domElement.style.pointerEvents = 'auto';
   lockOverlay.addEventListener('click',         () => { if (gameStarted) controls.lock(); });
@@ -715,14 +780,293 @@ const candles = [
   makeCandle(-11.7, 1.59, 4.7),  // kitchen south counter, 0.3 units from pepper jar
   // Verified: candle base Y (1.59 - 0.09 = 1.50) matches fireboxMesh top Y (0.75 + 0.75 = 1.50)
   makeCandle(0.5,   1.59, -14.7), // LR fireplace mantle (top of firebox, near front edge)
+  
+  // 1st Floor Candles
+  // Library candle (on the floor)
+  makeCandle(0, 4.09, -13),
+  // Playroom candle (on the floor)
+  makeCandle(-10, 4.09, 0),
 ];
 
-// ─── PENNY THE PINK-BOW BEANIE ────────────────────────────────────────────────
-function createPenny() {
-  const group = new THREE.Group();
-  group.name = 'penny';
+// ─── ENEMIES & LOGIC ─────────────────────────────────────────────────────────
 
-  // Body — sickly pale yellow-green fart-cloud sphere, squashed slightly
+let timeSinceStoppedMoving = 0;
+let deathCount = 0;
+let limboCleared = false;
+let lastPennySeesLia = false; // cached for debug overlay
+
+class Enemy {
+  constructor(name, group, waypoints, isSkeleton = false, patrolSpeed = 1.2) {
+    this.name = name;
+    this.group = group;
+    this.waypoints = waypoints;
+    this.waypointIndex = 0;
+    
+    this.state = 'PATROL'; // 'PATROL' | 'SUSPICIOUS' | 'CHASE' | 'STUNNED' | 'RAGE'
+    this.stateTimer = 0;
+    this.chaseTimer = 0;
+    this.lastSeenPosition = new THREE.Vector3();
+    
+    this.patrolSpeed = patrolSpeed;
+    this.chaseSpeedInitial = 2.5;
+    this.chaseSpeedMax = 4.0;
+    this.rageSpeed = 5.0;
+    this.currentChaseSpeed = this.chaseSpeedInitial;
+    
+    this.isSkeleton = isSkeleton;
+    this.fartTimer = 0;
+    this.particles = [];
+    
+    // Add to scene
+    this.group.position.copy(this.waypoints[0]);
+    scene.add(this.group);
+  }
+
+  transitionTo(newState) {
+    this.state = newState;
+    this.stateTimer = 0;
+    this.chaseTimer = 0;
+    this.currentChaseSpeed = this.chaseSpeedInitial;
+
+    const leftEye = this.group.userData.leftEye;
+    const rightEye = this.group.userData.rightEye;
+    const fartCloud = this.group.userData.fartCloud;
+
+    if (newState === 'CHASE') {
+      leftEye.material.color.setHex(0xcc0033); leftEye.material.emissive.setHex(0xcc0033); leftEye.material.emissiveIntensity = 1.5;
+      rightEye.material.color.setHex(0xcc0033); rightEye.material.emissive.setHex(0xcc0033); rightEye.material.emissiveIntensity = 1.5;
+      if (fartCloud) fartCloud.scale.set(1, 0.85, 1);
+    } else if (newState === 'SUSPICIOUS') {
+      leftEye.material.color.setHex(0xffcc00); leftEye.material.emissive.setHex(0xffcc00); leftEye.material.emissiveIntensity = 1.5;
+      rightEye.material.color.setHex(0xffcc00); rightEye.material.emissive.setHex(0xffcc00); rightEye.material.emissiveIntensity = 1.5;
+      if (fartCloud) fartCloud.scale.set(1, 0.85, 1);
+    } else if (newState === 'STUNNED') {
+      leftEye.material.color.setHex(0x9b30ff); leftEye.material.emissive.setHex(0x9b30ff); leftEye.material.emissiveIntensity = 2.0;
+      rightEye.material.color.setHex(0x9b30ff); rightEye.material.emissive.setHex(0x9b30ff); rightEye.material.emissiveIntensity = 2.0;
+      if (fartCloud) fartCloud.scale.set(0.5, 0.5 * 0.85, 0.5);
+    } else if (newState === 'RAGE') {
+      leftEye.material.color.setHex(0xff0000); leftEye.material.emissive.setHex(0xff0000); leftEye.material.emissiveIntensity = 2.5;
+      rightEye.material.color.setHex(0xff0000); rightEye.material.emissive.setHex(0xff0000); rightEye.material.emissiveIntensity = 2.5;
+      if (fartCloud) fartCloud.scale.set(1.5, 1.5 * 0.85, 1.5);
+    } else {
+      leftEye.material.color.setHex(0x0a0a0a); leftEye.material.emissive.setHex(0x000000); leftEye.material.emissiveIntensity = 0;
+      rightEye.material.color.setHex(0x0a0a0a); rightEye.material.emissive.setHex(0x000000); rightEye.material.emissiveIntensity = 0;
+      if (fartCloud) { fartCloud.material.opacity = 0.15; fartCloud.scale.set(1, 0.85, 1); }
+    }
+  }
+
+  checkSeesLia() {
+    const liaPos = isTouchDevice ? playerObj.position : camera.position;
+    const isMoving = (Math.abs(moveState.forward) > 0.01 || Math.abs(moveState.right) > 0.01);
+    const liaStill = !isMoving && timeSinceStoppedMoving > 1.0;
+
+    let detectRange, detectCone;
+    if (flashlightOn && isMoving)        { detectRange = 8; detectCone = Math.PI / 2; }
+    else if (flashlightOn && !isMoving)  { detectRange = 6; detectCone = Math.PI * 0.42; }
+    else if (!flashlightOn && isMoving)  { detectRange = 5; detectCone = Math.PI * 0.25; }
+    else                                 { detectRange = 3; detectCone = Math.PI * 0.14; }
+
+    _pennyToLia.set(liaPos.x - this.group.position.x, liaPos.y - 1.6 - this.group.position.y, liaPos.z - this.group.position.z);
+    const dist = _pennyToLia.length();
+    if (dist > detectRange) return false;
+    if (dist < 0.0001) return true;
+
+    _pennyForward.set(0, 0, 1).applyEuler(new THREE.Euler(0, this.group.rotation.y, 0));
+    _pennyToLia.divideScalar(dist);
+    const dot = _pennyForward.dot(_pennyToLia);
+    if (dot < Math.cos(detectCone / 2)) return false;
+
+    this.group.userData.leftEye.getWorldPosition(_pennyEyePos);
+    _liaWorldPos.set(liaPos.x, 1.5, liaPos.z);
+    _pennyLosDir.subVectors(_liaWorldPos, _pennyEyePos);
+    const losDist = _pennyLosDir.length();
+    if (losDist < 0.0001) return true;
+    _pennyLosDir.divideScalar(losDist);
+    const losRay = new THREE.Raycaster(_pennyEyePos, _pennyLosDir, 0, losDist);
+    const hits = losRay.intersectObjects(wallMeshes, false);
+    if (hits.length > 0) return false;
+
+    return true;
+  }
+
+  checkFlashlightStun() {
+    if (!flashlightOn) return false;
+    const liaPos = isTouchDevice ? playerObj.position : camera.position;
+    camera.getWorldDirection(_fwd);
+    _pennyToLia.set(this.group.position.x - liaPos.x, this.group.position.y - liaPos.y + 1.0, this.group.position.z - liaPos.z);
+    const dist = _pennyToLia.length();
+    if (dist > 10) return false; // Flashlight range
+
+    _pennyToLia.normalize();
+    if (_fwd.dot(_pennyToLia) < Math.cos(0.5)) return false; // Flashlight cone is 0.5 rad
+
+    // Raycast to check walls
+    this.group.userData.leftEye.getWorldPosition(_pennyEyePos);
+    _liaWorldPos.set(liaPos.x, 1.5, liaPos.z);
+    _pennyLosDir.subVectors(_pennyEyePos, _liaWorldPos);
+    const losDist = _pennyLosDir.length();
+    _pennyLosDir.divideScalar(losDist);
+    const losRay = new THREE.Raycaster(_liaWorldPos, _pennyLosDir, 0, losDist);
+    if (losRay.intersectObjects(wallMeshes, false).length > 0) return false;
+
+    return true;
+  }
+
+  update(delta, elapsedTime) {
+    this.stateTimer += delta;
+
+    // Visual animations
+    if (this.group.userData.body) {
+      this.group.userData.body.position.y = 0.6 + Math.sin(elapsedTime * 1.5 + this.group.position.x) * 0.05;
+    }
+    if (this.group.userData.bow) {
+      this.group.userData.bow.rotation.z = Math.sin(elapsedTime * 2 + this.group.position.z) * 0.08;
+    }
+    if (this.group.userData.propeller) {
+      this.group.userData.propeller.rotation.y += delta * 10;
+    }
+    
+    // Fart Particles for Skeleton
+    if (this.isSkeleton) {
+      this.fartTimer += delta;
+      let fartFreq = 2.0;
+      if (this.state === 'RAGE') fartFreq = 0.5;
+      else if (this.state === 'CHASE' || this.state === 'SUSPICIOUS') fartFreq = 1.0;
+      
+      if (this.fartTimer >= fartFreq) {
+        this.fartTimer = 0;
+        const p = new THREE.Mesh(
+          new THREE.SphereGeometry(0.2, 8, 8),
+          new THREE.MeshStandardMaterial({
+            color: 0x9bb540, transparent: true, opacity: 0.6, depthWrite: false
+          })
+        );
+        // Skeleton behind
+        const behind = new THREE.Vector3(0, 0.5, -0.3).applyEuler(this.group.rotation);
+        p.position.copy(this.group.position).add(behind);
+        p.userData = { life: 0, maxLife: 2.0 + Math.random() };
+        scene.add(p);
+        this.particles.push(p);
+      }
+    }
+    
+    // Update Particles
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
+      p.userData.life += delta;
+      if (p.userData.life >= p.userData.maxLife) {
+        scene.remove(p);
+        this.particles.splice(i, 1);
+      } else {
+        p.position.y += delta * 0.5;
+        p.scale.setScalar(1 + p.userData.life);
+        p.material.opacity = 0.6 * (1 - p.userData.life / p.userData.maxLife);
+      }
+    }
+
+    // Flashlight Check
+    if (this.state !== 'STUNNED' && this.state !== 'RAGE' && this.checkFlashlightStun()) {
+      this.transitionTo('STUNNED');
+    }
+
+    // AI Logic
+    if (this.state === 'STUNNED') {
+      if (this.stateTimer >= 3.0) {
+        this.transitionTo('RAGE');
+      }
+    }
+    else if (this.state === 'RAGE') {
+      const liaPos = isTouchDevice ? playerObj.position : camera.position;
+      this.lastSeenPosition.set(liaPos.x, liaPos.y - 1.6, liaPos.z);
+      
+      _pennyToTarget.set(this.lastSeenPosition.x - this.group.position.x, this.lastSeenPosition.y - this.group.position.y, this.lastSeenPosition.z - this.group.position.z);
+      const dist = _pennyToTarget.length();
+      if (dist > 0.2) {
+        _pennyToTarget.divideScalar(dist);
+        this.group.position.addScaledVector(_pennyToTarget, this.rageSpeed * delta);
+        this.group.rotation.y = Math.atan2(_pennyToTarget.x, _pennyToTarget.z);
+      }
+
+      if (Math.hypot(liaPos.x - this.group.position.x, liaPos.z - this.group.position.z) < 0.7) {
+        triggerCaught();
+        return;
+      }
+
+      if (this.stateTimer >= 5.0) {
+        this.transitionTo('PATROL');
+      }
+    }
+    else if (this.state === 'PATROL') {
+      const target = this.waypoints[this.waypointIndex];
+      _pennyToTarget.set(target.x - this.group.position.x, target.y - this.group.position.y, target.z - this.group.position.z);
+      const dist = _pennyToTarget.length();
+      if (dist < 0.3) {
+        this.waypointIndex = (this.waypointIndex + 1) % this.waypoints.length;
+      } else {
+        _pennyToTarget.divideScalar(dist);
+        this.group.position.addScaledVector(_pennyToTarget, this.patrolSpeed * delta);
+        this.group.rotation.y = Math.atan2(_pennyToTarget.x, _pennyToTarget.z);
+      }
+
+      if (this.checkSeesLia()) {
+        const liaPos = isTouchDevice ? playerObj.position : camera.position;
+        this.lastSeenPosition.set(liaPos.x, liaPos.y - 1.6, liaPos.z);
+        this.transitionTo('SUSPICIOUS');
+      }
+    }
+    else if (this.state === 'SUSPICIOUS') {
+      const liaPos = isTouchDevice ? playerObj.position : camera.position;
+      _pennyToLia.set(liaPos.x - this.group.position.x, liaPos.y - 1.6 - this.group.position.y, liaPos.z - this.group.position.z);
+      if (_pennyToLia.lengthSq() > 0.0001) {
+        this.group.rotation.y = Math.atan2(_pennyToLia.x, _pennyToLia.z);
+      }
+      if (this.stateTimer < 2.5) {
+        if (this.checkSeesLia()) {
+          this.lastSeenPosition.set(liaPos.x, liaPos.y - 1.6, liaPos.z);
+          this.transitionTo('CHASE');
+        }
+      } else {
+        this.transitionTo('PATROL');
+      }
+    }
+    else if (this.state === 'CHASE') {
+      this.currentChaseSpeed = Math.min(this.chaseSpeedMax, this.chaseSpeedInitial + this.stateTimer * 0.3);
+      if (this.group.userData.fartCloud) {
+        this.group.userData.fartCloud.material.opacity = 0.15 + Math.sin(elapsedTime * 6) * 0.1;
+      }
+
+      const liaPos = isTouchDevice ? playerObj.position : camera.position;
+      if (this.checkSeesLia()) {
+        this.lastSeenPosition.set(liaPos.x, liaPos.y - 1.6, liaPos.z);
+        this.chaseTimer = 0;
+      } else {
+        this.chaseTimer += delta;
+      }
+
+      _pennyToTarget.set(this.lastSeenPosition.x - this.group.position.x, this.lastSeenPosition.y - this.group.position.y, this.lastSeenPosition.z - this.group.position.z);
+      const dist = _pennyToTarget.length();
+      if (dist > 0.2) {
+        _pennyToTarget.divideScalar(dist);
+        this.group.position.addScaledVector(_pennyToTarget, this.currentChaseSpeed * delta);
+        this.group.rotation.y = Math.atan2(_pennyToTarget.x, _pennyToTarget.z);
+      }
+
+      if (Math.hypot(liaPos.x - this.group.position.x, liaPos.z - this.group.position.z) < 0.7) {
+        triggerCaught();
+        return;
+      }
+
+      if (this.chaseTimer > 3.0 || this.stateTimer > 12.0) {
+        this.transitionTo('PATROL');
+      }
+    }
+  }
+}
+
+// Visual Generators
+function createGhostBoyVisuals(hasPropeller) {
+  const group = new THREE.Group();
+
   const bodyMat = new THREE.MeshStandardMaterial({
     color: 0x9bb540, emissive: 0x9bb540, emissiveIntensity: 1.8,
     roughness: 0.6, metalness: 0.0
@@ -733,50 +1077,59 @@ function createPenny() {
   group.add(body);
   group.userData.body = body;
 
-  // Eyes — children of body
   const eyeMat = () => new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.3, metalness: 0 });
   const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat());
   leftEye.scale.set(1, 2, 1);
-  // Position pushed out to z=0.41 to sit flush with the 0.45 radius body surface
-  leftEye.position.set(-0.15, (0.7 - 0.6) / 0.85, 0.41); 
+  leftEye.position.set(-0.15, 0.12, 0.41); 
   body.add(leftEye);
   const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.06, 8, 6), eyeMat());
   rightEye.scale.set(1, 2, 1);
-  rightEye.position.set(0.15, (0.7 - 0.6) / 0.85, 0.41);
+  rightEye.position.set(0.15, 0.12, 0.41);
   body.add(rightEye);
   group.userData.leftEye = leftEye;
   group.userData.rightEye = rightEye;
 
-  // Pink bow on top — small group of 3 sub-meshes
-  const bow = new THREE.Group();
-  bow.position.set(0, 1.05, 0);
-  const bowMat = new THREE.MeshStandardMaterial({
-    color: 0xff6b9d, emissive: 0xff6b9d, emissiveIntensity: 0.2,
-    roughness: 0.5, metalness: 0
-  });
-  const bowKnot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bowMat);
-  bow.add(bowKnot);
-  const bowLoopL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.05), bowMat);
-  bowLoopL.position.set(-0.12, 0, 0);
-  bowLoopL.rotation.z = Math.PI / 9; // +20°
-  bow.add(bowLoopL);
-  const bowLoopR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.05), bowMat);
-  bowLoopR.position.set(0.12, 0, 0);
-  bowLoopR.rotation.z = -Math.PI / 9; // -20°
-  bow.add(bowLoopR);
-  group.add(bow);
-  group.userData.bow = bow;
+  if (hasPropeller) {
+    const beanie = new THREE.Mesh(
+      new THREE.SphereGeometry(0.3, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2),
+      new THREE.MeshStandardMaterial({ color: 0x2244cc, roughness: 0.8 })
+    );
+    beanie.position.set(0, 1.0, 0);
+    group.add(beanie);
+    
+    const propGroup = new THREE.Group();
+    propGroup.position.set(0, 1.3, 0);
+    const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.1), new THREE.MeshStandardMaterial({ color: 0x888888 }));
+    propGroup.add(pin);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.05), new THREE.MeshStandardMaterial({ color: 0xffcc00 }));
+    blade.position.y = 0.05;
+    propGroup.add(blade);
+    group.add(propGroup);
+    group.userData.propeller = propGroup;
+  } else {
+    // Pink bow
+    const bow = new THREE.Group();
+    bow.position.set(0, 1.05, 0);
+    const bowMat = new THREE.MeshStandardMaterial({
+      color: 0xff6b9d, emissive: 0xff6b9d, emissiveIntensity: 0.2, roughness: 0.5, metalness: 0
+    });
+    const bowKnot = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), bowMat);
+    bow.add(bowKnot);
+    const bowLoopL = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.05), bowMat);
+    bowLoopL.position.set(-0.12, 0, 0); bowLoopL.rotation.z = Math.PI / 9; bow.add(bowLoopL);
+    const bowLoopR = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.05), bowMat);
+    bowLoopR.position.set(0.12, 0, 0); bowLoopR.rotation.z = -Math.PI / 9; bow.add(bowLoopR);
+    group.add(bow);
+    group.userData.bow = bow;
+  }
 
-  // Glow point light per Enemy Visibility Standard
   const glow = new THREE.PointLight(0x9bb540, 0.6, 4);
   glow.position.set(0, 0.6, 0);
   group.add(glow);
 
-  // Fart-puff aura — larger soft transparent cloud around body
   const fartMat = new THREE.MeshStandardMaterial({
     color: 0x9bb540, emissive: 0x9bb540, emissiveIntensity: 0.4,
-    roughness: 0.6, metalness: 0,
-    transparent: true, opacity: 0.15, depthWrite: false
+    roughness: 0.6, metalness: 0, transparent: true, opacity: 0.15, depthWrite: false
   });
   const fartCloud = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), fartMat);
   fartCloud.scale.y = 0.85;
@@ -787,65 +1140,76 @@ function createPenny() {
   return group;
 }
 
-const penny = createPenny();
-penny.position.set(0, 0, -2);
-penny.rotation.y = Math.PI; // facing -Z (toward Living Room)
-scene.add(penny);
+function createSkeletonVisuals() {
+  const group = new THREE.Group();
+  const boneMat = new THREE.MeshStandardMaterial({ color: 0xe0d8c8, roughness: 0.9 });
 
-// Penny patrol waypoints — 4-point circuit through Lobby + Living Room
+  const ribcage = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.6, 8), boneMat);
+  ribcage.position.set(0, 1.0, 0);
+  group.add(ribcage);
+  group.userData.body = ribcage; // for bobbing
+
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.25, 16, 16), boneMat);
+  skull.position.set(0, 1.5, 0);
+  group.add(skull);
+
+  const eyeMat = () => new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.3, metalness: 0 });
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), eyeMat());
+  leftEye.position.set(-0.1, 1.55, 0.22);
+  group.add(leftEye);
+  const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), eyeMat());
+  rightEye.position.set(0.1, 1.55, 0.22);
+  group.add(rightEye);
+  group.userData.leftEye = leftEye;
+  group.userData.rightEye = rightEye;
+  
+  // Limbs
+  const armL = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.6), boneMat);
+  armL.position.set(-0.3, 0.9, 0); armL.rotation.z = Math.PI / 8; group.add(armL);
+  const armR = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.03, 0.6), boneMat);
+  armR.position.set(0.3, 0.9, 0); armR.rotation.z = -Math.PI / 8; group.add(armR);
+  
+  const legL = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.7), boneMat);
+  legL.position.set(-0.15, 0.35, 0); group.add(legL);
+  const legR = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.7), boneMat);
+  legR.position.set(0.15, 0.35, 0); group.add(legR);
+
+  return group;
+}
+
 const pennyWaypoints = [
-  new THREE.Vector3(0,    0, -2),   // Lobby north
-  new THREE.Vector3(0,    0, -10),  // Living Room center (in front of couch)
-  new THREE.Vector3(-2,   0, -13),  // Living Room near fireplace
-  new THREE.Vector3(2,    0, -10),  // Living Room east side
+  new THREE.Vector3(0,    0, -2),
+  new THREE.Vector3(0,    0, -10),
+  new THREE.Vector3(2.5,  0, -6),
+  new THREE.Vector3(2.5,  4, -11),
+  new THREE.Vector3(0,    4, -8),
+  new THREE.Vector3(-8,   4, -8),
+  new THREE.Vector3(-8,   4, 0),
+  new THREE.Vector3(0,    4, -13),
+  new THREE.Vector3(2.5,  4, -11),
+  new THREE.Vector3(2.5,  0, -6),
 ];
 
-let pennyState = 'PATROL'; // 'PATROL' | 'SUSPICIOUS' | 'CHASE' | 'STUNNED'
-let pennyWaypointIndex = 0;
-let pennyStateTimer = 0;
-let pennyChaseTimer = 0;
-let pennyLastSeenPosition = new THREE.Vector3();
+const tommyWaypoints = [
+  new THREE.Vector3(-10,  0, 0),
+  new THREE.Vector3(-12,  0, -3),
+  new THREE.Vector3(-10,  0, 3),
+  new THREE.Vector3(-5,   0, 0),
+  new THREE.Vector3(0,    0, 2),
+];
 
-const PENNY_PATROL_SPEED = 1.2;
-const PENNY_CHASE_SPEED_INITIAL = 2.5;
-const PENNY_CHASE_SPEED_MAX = 4.0;
-let pennyCurrentChaseSpeed = PENNY_CHASE_SPEED_INITIAL;
+const josephWaypoints = [
+  new THREE.Vector3(0,    0, -13),
+  new THREE.Vector3(-3,   0, -10),
+  new THREE.Vector3(3,    0, -8),
+  new THREE.Vector3(0,    0, -6),
+];
 
-let timeSinceStoppedMoving = 0;
-let deathCount = 0;
-let limboCleared = false;
-let lastPennySeesLia = false; // cached for debug overlay
-
-function transitionPennyTo(newState) {
-  pennyState = newState;
-  pennyStateTimer = 0;
-  pennyChaseTimer = 0;
-  pennyCurrentChaseSpeed = PENNY_CHASE_SPEED_INITIAL;
-
-  if (newState === 'CHASE') {
-    penny.userData.leftEye.material.color.setHex(0xcc0033);
-    penny.userData.leftEye.material.emissive.setHex(0xcc0033);
-    penny.userData.leftEye.material.emissiveIntensity = 1.5;
-    penny.userData.rightEye.material.color.setHex(0xcc0033);
-    penny.userData.rightEye.material.emissive.setHex(0xcc0033);
-    penny.userData.rightEye.material.emissiveIntensity = 1.5;
-  } else if (newState === 'SUSPICIOUS') {
-    penny.userData.leftEye.material.color.setHex(0xffcc00);
-    penny.userData.leftEye.material.emissive.setHex(0xffcc00);
-    penny.userData.leftEye.material.emissiveIntensity = 1.5;
-    penny.userData.rightEye.material.color.setHex(0xffcc00);
-    penny.userData.rightEye.material.emissive.setHex(0xffcc00);
-    penny.userData.rightEye.material.emissiveIntensity = 1.5;
-  } else {
-    penny.userData.leftEye.material.color.setHex(0x0a0a0a);
-    penny.userData.leftEye.material.emissive.setHex(0x000000);
-    penny.userData.leftEye.material.emissiveIntensity = 0;
-    penny.userData.rightEye.material.color.setHex(0x0a0a0a);
-    penny.userData.rightEye.material.emissive.setHex(0x000000);
-    penny.userData.rightEye.material.emissiveIntensity = 0;
-    penny.userData.fartCloud.material.opacity = 0.15;
-  }
-}
+const enemies = [
+  new Enemy('Penny', createGhostBoyVisuals(false), pennyWaypoints, false, 1.2),
+  new Enemy('Tommy', createGhostBoyVisuals(true), tommyWaypoints, false, 1.3),
+  new Enemy('Joseph', createSkeletonVisuals(), josephWaypoints, true, 1.0)
+];
 
 const _pennyToTarget = new THREE.Vector3();
 const _pennyForward  = new THREE.Vector3();
@@ -853,125 +1217,6 @@ const _pennyToLia    = new THREE.Vector3();
 const _pennyEyePos   = new THREE.Vector3();
 const _pennyLosDir   = new THREE.Vector3();
 const _liaWorldPos   = new THREE.Vector3();
-
-function checkPennySeesLia() {
-  const liaPos = isTouchDevice ? playerObj.position : camera.position;
-
-  const isMoving = (Math.abs(moveState.forward) > 0.01 || Math.abs(moveState.right) > 0.01);
-  const liaStill = !isMoving && timeSinceStoppedMoving > 1.0;
-
-  let detectRange, detectCone;
-  if (flashlightOn && isMoving)        { detectRange = 8; detectCone = Math.PI / 2; }       // 90°
-  else if (flashlightOn && !isMoving)  { detectRange = 6; detectCone = Math.PI * 0.42; }    // ~75°
-  else if (!flashlightOn && isMoving)  { detectRange = 5; detectCone = Math.PI * 0.25; }    // 45°
-  else                                  { detectRange = 3; detectCone = Math.PI * 0.14; }    // 25° (liaStill)
-
-  _pennyToLia.set(liaPos.x - penny.position.x, 0, liaPos.z - penny.position.z);
-  const dist = _pennyToLia.length();
-  if (dist > detectRange) return false;
-  if (dist < 0.0001) return true;
-
-  _pennyForward.set(0, 0, 1).applyEuler(new THREE.Euler(0, penny.rotation.y, 0));
-  _pennyToLia.divideScalar(dist);
-  const dot = _pennyForward.dot(_pennyToLia);
-  if (dot < Math.cos(detectCone / 2)) return false;
-
-  // Line-of-sight raycast from Penny's left eye to Lia's head
-  penny.userData.leftEye.getWorldPosition(_pennyEyePos);
-  _liaWorldPos.set(liaPos.x, 1.5, liaPos.z);
-  _pennyLosDir.subVectors(_liaWorldPos, _pennyEyePos);
-  const losDist = _pennyLosDir.length();
-  if (losDist < 0.0001) return true;
-  _pennyLosDir.divideScalar(losDist);
-  const losRay = new THREE.Raycaster(_pennyEyePos, _pennyLosDir, 0, losDist);
-  const hits = losRay.intersectObjects(wallMeshes, false);
-  if (hits.length > 0) return false;
-
-  return true;
-}
-
-function updatePenny(delta, elapsedTime) {
-  pennyStateTimer += delta;
-
-  if (pennyState === 'PATROL') {
-    const target = pennyWaypoints[pennyWaypointIndex];
-    _pennyToTarget.set(target.x - penny.position.x, 0, target.z - penny.position.z);
-    const dist = _pennyToTarget.length();
-    if (dist < 0.3) {
-      pennyWaypointIndex = (pennyWaypointIndex + 1) % pennyWaypoints.length;
-    } else {
-      _pennyToTarget.divideScalar(dist);
-      penny.position.x += _pennyToTarget.x * PENNY_PATROL_SPEED * delta;
-      penny.position.z += _pennyToTarget.z * PENNY_PATROL_SPEED * delta;
-      penny.rotation.y = Math.atan2(_pennyToTarget.x, _pennyToTarget.z);
-    }
-
-    if (checkPennySeesLia()) {
-      const liaPos = isTouchDevice ? playerObj.position : camera.position;
-      pennyLastSeenPosition.set(liaPos.x, 0, liaPos.z);
-      transitionPennyTo('SUSPICIOUS');
-    }
-  }
-
-  else if (pennyState === 'SUSPICIOUS') {
-    const liaPos = isTouchDevice ? playerObj.position : camera.position;
-    _pennyToLia.set(liaPos.x - penny.position.x, 0, liaPos.z - penny.position.z);
-    if (_pennyToLia.lengthSq() > 0.0001) {
-      penny.rotation.y = Math.atan2(_pennyToLia.x, _pennyToLia.z);
-    }
-    if (pennyStateTimer < 2.5) {
-      if (checkPennySeesLia()) {
-        pennyLastSeenPosition.set(liaPos.x, 0, liaPos.z);
-        transitionPennyTo('CHASE');
-      }
-    } else {
-      transitionPennyTo('PATROL');
-    }
-  }
-
-  else if (pennyState === 'CHASE') {
-    pennyCurrentChaseSpeed = Math.min(
-      PENNY_CHASE_SPEED_MAX,
-      PENNY_CHASE_SPEED_INITIAL + pennyStateTimer * 0.3
-    );
-
-    penny.userData.fartCloud.material.opacity = 0.15 + Math.sin(elapsedTime * 6) * 0.1;
-
-    const liaPos = isTouchDevice ? playerObj.position : camera.position;
-    if (checkPennySeesLia()) {
-      pennyLastSeenPosition.set(liaPos.x, 0, liaPos.z);
-      pennyChaseTimer = 0;
-    } else {
-      pennyChaseTimer += delta;
-    }
-
-    _pennyToTarget.set(
-      pennyLastSeenPosition.x - penny.position.x,
-      0,
-      pennyLastSeenPosition.z - penny.position.z
-    );
-    const dist = _pennyToTarget.length();
-    if (dist > 0.2) {
-      _pennyToTarget.divideScalar(dist);
-      penny.position.x += _pennyToTarget.x * pennyCurrentChaseSpeed * delta;
-      penny.position.z += _pennyToTarget.z * pennyCurrentChaseSpeed * delta;
-      penny.rotation.y = Math.atan2(_pennyToTarget.x, _pennyToTarget.z);
-    }
-
-    const distToLia = Math.hypot(
-      liaPos.x - penny.position.x,
-      liaPos.z - penny.position.z
-    );
-    if (distToLia < 0.7) {
-      triggerCaught();
-      return;
-    }
-
-    if (pennyChaseTimer > 3.0 || pennyStateTimer > 12.0) {
-      transitionPennyTo('PATROL');
-    }
-  }
-}
 
 // ─── Caught & respawn mechanic ────────────────────────────────────────────────
 function triggerCaught() {
@@ -992,9 +1237,13 @@ function triggerCaught() {
     }
     playerObj.position.set(0, 0, 0);
 
-    transitionPennyTo('PATROL');
+    for (const enemy of enemies) {
+      enemy.transitionTo('PATROL');
+      enemy.waypointIndex = 0;
+      enemy.group.position.copy(enemy.waypoints[0]);
+    }
+    
     movementLocked = false;
-
     flashEl.style.opacity = '0';
     setTimeout(() => { flashEl.style.display = 'none'; }, 400);
   }, 500);
@@ -1003,7 +1252,7 @@ function triggerCaught() {
 // ─── Limbo Hall win condition ─────────────────────────────────────────────────
 function checkLimboWin() {
   if (limboCleared) return;
-  if (candleCount >= 2) {
+  if (candleCount >= 4) {
     limboCleared = true;
     showLimboVictoryScreen();
   }
@@ -1028,7 +1277,13 @@ const hudRoom      = document.getElementById('hud-room');
 const hudCandles   = document.getElementById('hud-candles');
 const interactPrompt = document.getElementById('interact-prompt');
 
-function getCurrentRoom(x, z) {
+function getCurrentRoom(x, y, z) {
+  if (y > 3) {
+    if (x >= -15 && x <= -5 && z >= -5 && z <= 5)   return 'Playroom';
+    if (x >= -15 && x <= -5 && z >= -15 && z <= -5) return 'Kids Dorms';
+    if (x >= -5  && x <= 5  && z >= -15 && z <= -11) return 'Library';
+    return 'Purgatory Hall';
+  }
   if (x >= -15 && x <= -5 && z >= -5 && z <= 5)   return 'Kitchen';
   if (x >= -5  && x <= 5  && z >= -15 && z <= -5) return 'Living Room';
   return 'Lobby';
@@ -1077,7 +1332,7 @@ function tryInteract() {
   if (bestCandle === null) return;
   lightCandle(bestCandle);
   candleCount++;
-  hudCandles.textContent = `Candles lit: ${candleCount} / 8`;
+  hudCandles.textContent = `Candles lit: ${candleCount} / 4`;
   checkLimboWin();
 }
 
@@ -1087,6 +1342,15 @@ const _right      = new THREE.Vector3();
 const _up         = new THREE.Vector3(0, 1, 0);
 const _testSphere = new THREE.Sphere(new THREE.Vector3(), 0.3);
 const _toCandle   = new THREE.Vector3();
+
+function getFloorHeight(x, y, z) {
+  if (x >= 0 && x <= 5 && z >= -11 && z <= -6) {
+    const t = (-6 - z) / 5; 
+    return Math.max(0, Math.min(4, t * 4));
+  }
+  if (y > 2) return 4;
+  return 0;
+}
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
 function animate() {
@@ -1116,7 +1380,7 @@ function animate() {
     candle.userData.flameMesh.scale.y = 1.4 + Math.sin(t * 11 + candle.position.x) * 0.1;
   }
 
-  if (!gameStarted) { renderer.render(scene, camera); return; }
+  if (!gameStarted || isPaused) { renderer.render(scene, camera); return; }
 
   // ── Movement + collision ─────────────────────────────────────────────────
 
@@ -1140,9 +1404,12 @@ function animate() {
 
       playerObj.position.x += canX ? dx : 0;
       playerObj.position.z += canZ ? dz : 0;
+      const targetFloorY = getFloorHeight(playerObj.position.x, playerObj.position.y, playerObj.position.z);
+      const currentFloorY = playerObj.position.y;
+      playerObj.position.y = currentFloorY + (targetFloorY - currentFloorY) * 10 * dt;
     }
 
-    hudRoom.textContent = 'Room: ' + getCurrentRoom(playerObj.position.x, playerObj.position.z);
+    hudRoom.textContent = 'Room: ' + getCurrentRoom(playerObj.position.x, playerObj.position.y, playerObj.position.z);
 
   } else if (controls) {
     if (!movementLocked) {
@@ -1158,18 +1425,23 @@ function animate() {
       const dz = (_fwd.z * moveState.forward + _right.z * moveState.right) * dist;
       const cx = camera.position.x, cz = camera.position.z;
 
-      _testSphere.center.set(cx + dx, 1.6, cz);
+      _testSphere.center.set(cx + dx, camera.position.y, cz);
       const canX = !wallColliders.some(b => b.intersectsSphere(_testSphere));
-      _testSphere.center.set(cx, 1.6, cz + dz);
+      _testSphere.center.set(cx, camera.position.y, cz + dz);
       const canZ = !wallColliders.some(b => b.intersectsSphere(_testSphere));
 
       camera.position.x += canX ? dx : 0;
       camera.position.z += canZ ? dz : 0;
-      camera.position.y = 1.6;
-      playerObj.position.set(camera.position.x, 0, camera.position.z);
+      
+      const targetFloorY = getFloorHeight(camera.position.x, camera.position.y - 1.6, camera.position.z);
+      const currentFloorY = camera.position.y - 1.6;
+      const nextFloorY = currentFloorY + (targetFloorY - currentFloorY) * 10 * dt;
+      camera.position.y = nextFloorY + 1.6;
+      
+      playerObj.position.set(camera.position.x, nextFloorY, camera.position.z);
     }
 
-    hudRoom.textContent = 'Room: ' + getCurrentRoom(camera.position.x, camera.position.z);
+    hudRoom.textContent = 'Room: ' + getCurrentRoom(camera.position.x, camera.position.y, camera.position.z);
   }
 
   // ── Track still-time (used by Penny's vision cone) ───────────────────────
@@ -1180,14 +1452,17 @@ function animate() {
     timeSinceStoppedMoving += dt;
   }
 
-  // ── Penny: hover anim + AI ───────────────────────────────────────────────
-  penny.userData.body.position.y = 0.6 + Math.sin(t * 1.5) * 0.05;
-  penny.userData.bow.rotation.z  = Math.sin(t * 2) * 0.08;
-
+  // ── Enemies AI ─────────────────────────────────────────────────────────────
   if (!movementLocked) {
-    updatePenny(dt, t);
+    let anySeesLia = false;
+    for (const enemy of enemies) {
+      enemy.update(dt, t);
+      if (enemy.checkSeesLia()) anySeesLia = true;
+    }
+    lastPennySeesLia = anySeesLia;
+  } else {
+    lastPennySeesLia = false;
   }
-  lastPennySeesLia = movementLocked ? false : checkPennySeesLia();
 
   // ── Interact-prompt telegraphing (candles only) ───────────────────────────
   if (movementLocked) {
@@ -1228,16 +1503,16 @@ function animate() {
     const camForward = new THREE.Vector3();
     camera.getWorldDirection(camForward);
 
-    const distPennyLia = Math.hypot(pos.x - penny.position.x, pos.z - penny.position.z);
+
 
     debugEl.textContent =
       `pos:   x=${pos.x.toFixed(2)} y=${pos.y.toFixed(2)} z=${pos.z.toFixed(2)}\n` +
       `look:  x=${camForward.x.toFixed(2)} z=${camForward.z.toFixed(2)}\n` +
       `flash: ${flashlightOn ? 'ON' : 'off'}\n` +
       `still-time: ${timeSinceStoppedMoving.toFixed(2)}s\n` +
-      `penny-state: ${pennyState}\n` +
-      `penny-pos: x=${penny.position.x.toFixed(2)} z=${penny.position.z.toFixed(2)}\n` +
-      `penny-dist: ${distPennyLia.toFixed(2)}\n` +
+
+
+
       `penny-sees-lia: ${lastPennySeesLia ? 'true' : 'false'}\n` +
       `candles: ${candleCount}/2\n` +
       `deaths: ${deathCount}\n` +
