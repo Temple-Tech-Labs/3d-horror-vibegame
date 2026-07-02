@@ -96,6 +96,9 @@ makeFloorCeilPair(5, 11, 2.5, -0.5);
 makeFloorCeilPair(5, 4, 2.5, -13);
 // This leaves a hole at x[0,5], z[-11,-6] for the stairs.
 
+const wallColliders = [];
+const wallMeshes = []; // raycast targets for line-of-sight checks
+
 // ─── BASEMENT FLOOR / GROUND FLOOR CEILING (Y=0) ──────────────────────────────
 const basementFloorMat = new THREE.MeshStandardMaterial({ color: 0x2a1a1a, roughness: 0.9, metalness: 0 });
 const basementCeilMat = new THREE.MeshStandardMaterial({ color: 0x1a0d2e, roughness: 0.95, metalness: 0 });
@@ -198,8 +201,6 @@ placeBasementWainscot(-4.82, -1.5, 0, 0.08, 10);   // Storage/Scoville divider
 //   Kitchen:     x[-15,-5],  z[-5, 5]    — west of lobby
 //   Living Room: x[-5, 5],   z[-15,-5]   — north of lobby
 //
-const wallColliders = [];
-const wallMeshes = []; // raycast targets for Penny's line-of-sight check
 
 function jitterColor(hex) {
   const c = new THREE.Color(hex);
