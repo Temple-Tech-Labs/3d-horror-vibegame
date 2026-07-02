@@ -317,6 +317,123 @@ makeWall(-10, 6, -13.5, 0.3, 4, 3);
 makeWall(-10, 6, -6.5,  0.3, 4, 3);
 makeWall(-10, 7.5, -10, 0.3, 1, 4);
 
+// ─── 2ND FLOOR CEILING (Y=12) & FLOOR (Y=8) ──────────────────────────────────
+const ceilMat3 = new THREE.MeshStandardMaterial({ color: 0x1a0d2e, roughness: 0.95, metalness: 0 });
+const floor2Mat = new THREE.MeshStandardMaterial({ color: 0x3a2010, roughness: 0.9, metalness: 0 });
+
+function makeFloorCeilPair2(w, d, cx, cz) {
+  // 2nd floor floor at y=8
+  const floor2 = new THREE.Mesh(new THREE.PlaneGeometry(w, d), floor2Mat);
+  floor2.rotation.x = -Math.PI / 2;
+  floor2.position.set(cx, 8, cz);
+  floor2.receiveShadow = true;
+  scene.add(floor2);
+
+  // 2nd floor ceiling at y=12
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), ceilMat3);
+  ceil.rotation.x = Math.PI / 2;
+  ceil.position.set(cx, 11.98, cz);
+  scene.add(ceil);
+}
+
+// Piecemeal 2nd floor with stair hole at x[0,5], z[-11,-6]
+makeFloorCeilPair2(15, 20, -7.5, -5);   // Left side
+makeFloorCeilPair2(5, 11, 2.5, -0.5);   // Front right
+makeFloorCeilPair2(5, 4, 2.5, -13);     // Back right
+// Hole at x[0,5], z[-11,-6] for stairs
+
+// ─── 2ND FLOOR OUTER WALLS (Y=10) ──────────────────────────────────────────────
+// North: x[-15,5], z=-15
+makeWall(0, 10, -15, 20, 4, 0.3);
+// East: x=5, z[-15,5]
+makeWall(5, 10, -5, 0.3, 4, 20);
+// West: x=-15, z[-15,5]
+makeWall(-15, 10, -5, 0.3, 4, 20);
+// South: x[-15,5], z=5
+makeWall(-5, 10, 5, 20, 4, 0.3);
+
+// ─── 2ND FLOOR INTERIOR WALLS (Y=10) ───────────────────────────────────────────
+// Adult Dorm 1 (NW): x[-15,-5], z[-15,-9]
+makeWall(-10, 10, -9, 10, 4, 0.3);   // South wall of Dorm 1
+// Adult Dorm 2 (NW): x[-15,-5], z[-9,-3]
+makeWall(-10, 10, -3, 10, 4, 0.3);   // South wall of Dorm 2
+// Music Room (W): x[-15,-5], z[-3,5]
+makeWall(-10, 10, 5, 10, 4, 0.3);    // South wall (outer, shared)
+// West side vertical dividers between dorms & music room
+makeWall(-5, 10, -12, 0.3, 4, 6);    // East wall of Dorm 1 section
+makeWall(-5, 10, -6, 0.3, 4, 6);     // East wall of Dorm 2 section
+makeWall(-5, 10, 1, 0.3, 4, 8);      // East wall of Music Room
+
+// Observatory (NE): x[-5,5], z[-15,-6]
+makeWall(0, 10, -15, 10, 4, 0.3);    // North wall (outer)
+// Observatory west wall (shared with dorms) already covered by -5 divider walls
+
+// Observatory / Terrace divider (z=-6)
+makeWall(0, 10, -6, 10, 4, 0.3);     // Separates Observatory (N) from Terrace (S)
+
+// Terrace (SE): x[-5,5], z[-6,5]
+// South wall is outer, east is outer, west is hallway to stairs
+
+// Hallway from stairs: x[0,5], z[-11,-6] — keep open for stair landing
+
+// ─── 2ND FLOOR STAIRS (continuing from 1st floor) ──────────────────────────────
+// 1st floor stairs end at step 4: z=-10.2, y=3.6
+// Bridge step to reach stair hole (z=-11)
+const stepMat2 = new THREE.MeshStandardMaterial({ color: 0x4a2e1a, roughness: 0.85, metalness: 0 });
+const bridgeStep = new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 0.8), stepMat2);
+bridgeStep.position.set(2.5, 4.4, -11);
+scene.add(bridgeStep);
+// 5 steps continuing north from z=-11.8 to z=-14.2
+for (let i = 0; i < 5; i++) {
+  const step = new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 0.8), stepMat2);
+  step.position.set(2.5, 5.2 + i * 0.8, -11.8 - i * 0.8);
+  scene.add(step);
+}
+
+// ─── 2ND FLOOR LIGHTING (cooler-bluer moonlight per Locked Standard) ────────────
+// Observatory - cool moonlight, strong
+const observatoryLight = new THREE.SpotLight(0x7a8aaa, 5.0);
+observatoryLight.angle = 0.55;
+observatoryLight.penumbra = 0.45;
+observatoryLight.distance = 30;
+observatoryLight.decay = 1;
+observatoryLight.castShadow = false;
+observatoryLight.position.set(0, 12, -10);
+observatoryLight.target.position.set(0, 8, -10);
+scene.add(observatoryLight);
+scene.add(observatoryLight.target);
+
+// Observatory moon pool decal
+const moonPoolMesh2 = new THREE.Mesh(
+  new THREE.BoxGeometry(2.5, 0.02, 3),
+  new THREE.MeshStandardMaterial({
+    color: 0x5a6a8a, emissive: 0x5a6a8a, emissiveIntensity: 0.5,
+    roughness: 0.4, metalness: 0
+  })
+);
+moonPoolMesh2.position.set(0, 8.011, -10);
+scene.add(moonPoolMesh2);
+
+// Adult Dorm 1 - dim warm ember
+const dorm1Light = new THREE.PointLight(0x5a3a2a, 0.6, 8);
+dorm1Light.position.set(-10, 10, -12);
+scene.add(dorm1Light);
+
+// Adult Dorm 2 - dim cool moonlight
+const dorm2Light = new THREE.PointLight(0x7a8aaa, 0.5, 8);
+dorm2Light.position.set(-10, 10, -6);
+scene.add(dorm2Light);
+
+// Music Room - warm string-light glow
+const musicLight = new THREE.PointLight(0xff8847, 0.7, 10);
+musicLight.position.set(-10, 10, 1);
+scene.add(musicLight);
+
+// Terrace - moonlight seep
+const terraceLight = new THREE.PointLight(0x5a6a8a, 0.4, 8);
+terraceLight.position.set(0, 10, 0);
+scene.add(terraceLight);
+
 // ─── 1ST FLOOR LIGHTING ───────────────────────────────────────────────────────
 // Playroom light
 const playroomLight = new THREE.PointLight(0xff8847, 0.8, 10);
@@ -926,7 +1043,15 @@ const candles = [
   makeCandle(-10, -3.91, -10),
   // Scoville Lab candle (on a workbench)
   makeCandle(0, -3.91, 0),
+  
+  // 2nd Floor Candles (y = 8 floor, so base at 8.09)
+  // Observatory candle (on a pedestal)
+  makeCandle(0, 8.09, -12),
+  // Music Room candle (on a piano/shelf)
+  makeCandle(-10, 8.09, 0),
 ];
+
+const TOTAL_CANDLES = candles.length;
 
 // ─── ENEMIES & LOGIC ─────────────────────────────────────────────────────────
 
@@ -1317,6 +1442,83 @@ function createSkeletonVisuals() {
   return group;
 }
 
+function createGrandparentVisuals(isGrandpa = false) {
+  const group = new THREE.Group();
+  const ghoulMat = new THREE.MeshStandardMaterial({ color: 0x4a5a3a, roughness: 0.9, metalness: 0 });
+
+  // Hunched oversized body
+  const body = new THREE.Mesh(new THREE.SphereGeometry(0.5, 12, 10), ghoulMat);
+  body.scale.set(1.0, 1.2, 0.8);
+  body.position.set(0, 0.6, 0.1);
+  group.add(body);
+  group.userData.body = body;
+
+  // Decayed skin tone face
+  const faceMat = new THREE.MeshStandardMaterial({ color: 0x6a7a5a, roughness: 0.9, metalness: 0 });
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 10), faceMat);
+  head.position.set(0, 1.2, 0.15);
+  group.add(head);
+
+  // Eyes - red angry glow
+  const eyeMat = () => new THREE.MeshStandardMaterial({ color: 0x0a0a0a, roughness: 0.3, metalness: 0 });
+  const leftEye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), eyeMat());
+  leftEye.position.set(-0.12, 1.25, 0.38);
+  group.add(leftEye);
+  const rightEye = new THREE.Mesh(new THREE.SphereGeometry(0.07, 8, 6), eyeMat());
+  rightEye.position.set(0.12, 1.25, 0.38);
+  group.add(rightEye);
+  group.userData.leftEye = leftEye;
+  group.userData.rightEye = rightEye;
+
+  // Vintage hat
+  if (isGrandpa) {
+    // Top hat
+    const hatMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.6, metalness: 0.1 });
+    const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.04, 12), hatMat);
+    hatBrim.position.set(0, 1.45, 0.15);
+    group.add(hatBrim);
+    const hatCrown = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.22, 0.25, 12), hatMat);
+    hatCrown.position.set(0, 1.6, 0.15);
+    group.add(hatCrown);
+    const hatBand = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 0.04, 12),
+      new THREE.MeshStandardMaterial({ color: 0xcc0033, roughness: 0.4, metalness: 0 }));
+    hatBand.position.set(0, 1.48, 0.15);
+    group.add(hatBand);
+  } else {
+    // Floral granny hat
+    const hatMat = new THREE.MeshStandardMaterial({ color: 0x8a6a7a, roughness: 0.8, metalness: 0 });
+    const hatBrim = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.35, 0.04, 12), hatMat);
+    hatBrim.position.set(0, 1.45, 0.15);
+    group.add(hatBrim);
+    const hatCrown = new THREE.Mesh(new THREE.SphereGeometry(0.2, 10, 10, 0, Math.PI * 2, 0, Math.PI / 2), hatMat);
+    hatCrown.position.set(0, 1.55, 0.15);
+    group.add(hatCrown);
+    // Tiny flower decoration
+    const flowerMat = new THREE.MeshStandardMaterial({ color: 0xff6b9d, emissive: 0xff6b9d, emissiveIntensity: 0.3 });
+    const flower = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), flowerMat);
+    flower.position.set(0.2, 1.6, 0.15);
+    group.add(flower);
+  }
+
+  // Fart cloud glow around body
+  const fartMat = new THREE.MeshStandardMaterial({
+    color: 0x9bb540, emissive: 0x9bb540, emissiveIntensity: 0.4,
+    roughness: 0.6, metalness: 0, transparent: true, opacity: 0.12, depthWrite: false
+  });
+  const fartCloud = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 12), fartMat);
+  fartCloud.scale.set(1.0, 0.85, 0.8);
+  fartCloud.position.set(0, 0.6, 0);
+  group.add(fartCloud);
+  group.userData.fartCloud = fartCloud;
+
+  // Accompanying point light
+  const glow = new THREE.PointLight(0x9bb540, 0.4, 4);
+  glow.position.set(0, 0.6, 0);
+  group.add(glow);
+
+  return group;
+}
+
 const pennyWaypoints = [
   new THREE.Vector3(0,    0, -2),
   new THREE.Vector3(0,    0, -10),
@@ -1367,6 +1569,28 @@ const daisyWaypoints = [
   new THREE.Vector3(0,  -4, 3),
 ];
 
+// 2nd Floor Zombie-Ghoul Grandparent waypoints (y = 8)
+const grandpaWaypoints = [
+  new THREE.Vector3(-10, 8, -12),   // Adult Dorm 1
+  new THREE.Vector3(-8,  8, -10),
+  new THREE.Vector3(-12, 8, -8),
+  new THREE.Vector3(-10, 8, -12),
+];
+
+const grandmaWaypoints = [
+  new THREE.Vector3(-10, 8, -6),    // Adult Dorm 2
+  new THREE.Vector3(-7,  8, -7),
+  new THREE.Vector3(-13, 8, -5),
+  new THREE.Vector3(-10, 8, -3),
+];
+
+const gustavoWaypoints = [
+  new THREE.Vector3(-10, 8, 0),     // Music Room
+  new THREE.Vector3(-12, 8, 2),
+  new THREE.Vector3(-7,  8, 3),
+  new THREE.Vector3(-10, 8, -1),
+];
+
 const enemies = [
   new Enemy('Penny', createGhostBoyVisuals(false), pennyWaypoints, false, 1.2),
   new Enemy('Tommy', createGhostBoyVisuals(true), tommyWaypoints, false, 1.3),
@@ -1375,6 +1599,10 @@ const enemies = [
   new Enemy('Basil', createGhostBoyVisuals(true), basilWaypoints, false, 1.5),
   new Enemy('Cora', createGhostBoyVisuals(false), coraWaypoints, false, 1.5),
   new Enemy('Daisy', createGhostBoyVisuals(false), daisyWaypoints, false, 1.5),
+  // 2nd Floor Zombie-Ghoul Grandparents (slowest, hardest to stun)
+  new Enemy('Grandpa Beanie', createGrandparentVisuals(true), grandpaWaypoints, false, 0.8),
+  new Enemy('Grandma Beanie', createGrandparentVisuals(false), grandmaWaypoints, false, 0.7),
+  new Enemy('Uncle Gustavo', createGrandparentVisuals(true), gustavoWaypoints, false, 0.9),
 ];
 
 const _pennyToTarget = new THREE.Vector3();
@@ -1444,11 +1672,26 @@ const hudCandles   = document.getElementById('hud-candles');
 const interactPrompt = document.getElementById('interact-prompt');
 
 function getCurrentRoom(x, y, z) {
+  if (y > 7) {
+    if (x >= -15 && x <= -5 && z >= -15 && z <= -9) return 'Adult Dorm 1';
+    if (x >= -15 && x <= -5 && z >= -9  && z <= -3) return 'Adult Dorm 2';
+    if (x >= -15 && x <= -5 && z >= -3  && z <= 5)  return 'Music Room';
+    if (x >= -5  && x <= 5  && z >= -15 && z <= -6) return 'Observatory';
+    if (x >= -5  && x <= 5  && z >= -6  && z <= 5)  return 'Terrace';
+    return 'Heaven Hall';
+  }
   if (y > 3) {
     if (x >= -15 && x <= -5 && z >= -5 && z <= 5)   return 'Playroom';
     if (x >= -15 && x <= -5 && z >= -15 && z <= -5) return 'Kids Dorms';
     if (x >= -5  && x <= 5  && z >= -15 && z <= -11) return 'Library';
     return 'Purgatory Hall';
+  }
+  if (y < 0) {
+    if (x >= -15 && x <= -5 && z >= -15 && z <= -5) return 'Furnace Room';
+    if (x >= -5  && x <= 5  && z >= -15 && z <= -5) return 'Workshop';
+    if (x >= -5  && x <= 5  && z >= -5  && z <= 5)  return 'Scoville Lab';
+    if (x >= -15 && x <= -5 && z >= -5  && z <= 5)  return 'Storage';
+    return "Hell's Labyrinth";
   }
   if (x >= -15 && x <= -5 && z >= -5 && z <= 5)   return 'Kitchen';
   if (x >= -5  && x <= 5  && z >= -15 && z <= -5) return 'Living Room';
@@ -1511,7 +1754,7 @@ function tryInteract() {
   if (bestCandle === null) return;
   lightCandle(bestCandle);
   candleCount++;
-  hudCandles.textContent = `Candles lit: ${candleCount} / 4`;
+  hudCandles.textContent = `Candles lit: ${candleCount} / ${TOTAL_CANDLES}`;
   checkLimboWin();
 }
 
@@ -1541,11 +1784,19 @@ const _testSphere = new THREE.Sphere(new THREE.Vector3(), 0.3);
 const _toCandle   = new THREE.Vector3();
 
 function getFloorHeight(x, y, z) {
+  // Stairwell: ramp from ground (0) to 1st floor (4) and up to 2nd floor (8)
   if (x >= 0 && x <= 5 && z >= -11 && z <= -6) {
-    const t = (-6 - z) / 5; 
+    const t = (-6 - z) / 5;
     return Math.max(0, Math.min(4, t * 4));
   }
+  // Extended stairwell for 2nd floor (past the hole, z from -11 to -15)
+  if (x >= 0 && x <= 5 && z >= -15 && z < -11) {
+    const t = (-11 - z) / 4;
+    return Math.max(4, Math.min(8, 4 + t * 4));
+  }
+  if (y > 6) return 8;
   if (y > 2) return 4;
+  if (y < -2) return -4;
   return 0;
 }
 
@@ -1711,7 +1962,7 @@ function animate() {
 
 
       `penny-sees-lia: ${lastPennySeesLia ? 'true' : 'false'}\n` +
-      `candles: ${candleCount}/2\n` +
+      `candles: ${candleCount}/${TOTAL_CANDLES}\n` +
       `deaths: ${deathCount}\n` +
       `limbo-cleared: ${limboCleared ? 'true' : 'false'}`;
   }
