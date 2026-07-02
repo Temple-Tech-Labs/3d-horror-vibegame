@@ -368,25 +368,26 @@ makeWall(-5, 10, 1, 0.3, 4, 8);      // East wall of Music Room
 makeWall(0, 10, -15, 10, 4, 0.3);    // North wall (outer)
 // Observatory west wall (shared with dorms) already covered by -5 divider walls
 
-// Observatory / Terrace divider (z=-6)
-makeWall(0, 10, -6, 10, 4, 0.3);     // Separates Observatory (N) from Terrace (S)
+// Observatory / Terrace divider (z=-6) — with stair opening at x[0,5]
+makeWall(-2.5, 10, -6, 5, 4, 0.3);   // Left of stairs (x[-5,0])
+// Right side left open for stairs (x[0,5])
 
 // Terrace (SE): x[-5,5], z[-6,5]
 // South wall is outer, east is outer, west is hallway to stairs
 
 // Hallway from stairs: x[0,5], z[-11,-6] — keep open for stair landing
 
-// ─── 2ND FLOOR STAIRS (continuing from 1st floor) ──────────────────────────────
+// ─── 2ND FLOOR STAIRS (continuing from 1st floor, ascending within stair hole) ─
 // 1st floor stairs end at step 4: z=-10.2, y=3.6
-// Bridge step to reach stair hole (z=-11)
+// Bridge step to reach stair hole north edge (z=-11)
 const stepMat2 = new THREE.MeshStandardMaterial({ color: 0x4a2e1a, roughness: 0.85, metalness: 0 });
 const bridgeStep = new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 0.8), stepMat2);
 bridgeStep.position.set(2.5, 4.4, -11);
 scene.add(bridgeStep);
-// 5 steps continuing north from z=-11.8 to z=-14.2
-for (let i = 0; i < 5; i++) {
+// 4 steps ascending south within the stair hole (back toward z=-6)
+for (let i = 0; i < 4; i++) {
   const step = new THREE.Mesh(new THREE.BoxGeometry(5, 0.8, 0.8), stepMat2);
-  step.position.set(2.5, 5.2 + i * 0.8, -11.8 - i * 0.8);
+  step.position.set(2.5, 5.2 + i * 0.8, -10.2 + i * 0.8);
   scene.add(step);
 }
 
@@ -1784,20 +1785,21 @@ const _testSphere = new THREE.Sphere(new THREE.Vector3(), 0.3);
 const _toCandle   = new THREE.Vector3();
 
 function getFloorHeight(x, y, z) {
-  // Stairwell: ramp from ground (0) to 1st floor (4) and up to 2nd floor (8)
+  // Determine target floor based on current height
+  let baseFloor = 0;
+  if (y >= 6) baseFloor = 8;
+  else if (y >= 2) baseFloor = 4;
+  else if (y < -2) baseFloor = -4;
+  else baseFloor = 0;
+
+  // Stairwell: smooth ramp from ground (z=-6, y=0) to 2nd floor (z=-11, y=8)
+  // Only activates when player is between floors (not on a solid floor)
   if (x >= 0 && x <= 5 && z >= -11 && z <= -6) {
     const t = (-6 - z) / 5;
-    return Math.max(0, Math.min(4, t * 4));
+    const rampY = t * 8;
+    if (y < 6 && Math.abs(y - rampY) < 2.5) return rampY;
   }
-  // Extended stairwell for 2nd floor (past the hole, z from -11 to -15)
-  if (x >= 0 && x <= 5 && z >= -15 && z < -11) {
-    const t = (-11 - z) / 4;
-    return Math.max(4, Math.min(8, 4 + t * 4));
-  }
-  if (y > 6) return 8;
-  if (y > 2) return 4;
-  if (y < -2) return -4;
-  return 0;
+  return baseFloor;
 }
 
 // ─── Game loop ────────────────────────────────────────────────────────────────
