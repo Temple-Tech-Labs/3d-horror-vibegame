@@ -193,13 +193,18 @@
     <!-- HUD -->
     <div id="hud">
       <div id="hud-title">HELL-FART HOUSE</div>
-      <div id="hud-candles">Candles lit: 0 / 8</div>
+      <div id="hud-candles">Candles lit: 0 / 4</div>
       <div id="hud-room">Room: Lobby</div>
       <div id="hud-controls">Sprint: SHIFT (hold)&nbsp;&nbsp;•&nbsp;&nbsp;Lantern: F&nbsp;&nbsp;•&nbsp;&nbsp;Interact: E</div>
     </div>
 
     <!-- Pointer-lock click overlay (desktop only, shown when unlocked) -->
-    <div id="lock-overlay" class="hidden">Click to look around</div>
+    <div id="lock-overlay" class="hidden">
+      <div style="text-align: center;">
+        <div style="font-family: 'Cormorant Garamond', Georgia, serif; font-size: 64px; font-weight: bold; margin-bottom: 20px; letter-spacing: 0.1em; color: rgba(255, 200, 100, 0.8); text-shadow: 0 0 16px rgba(200,100,0,0.5);">PAUSED</div>
+        <div style="font-size: 16px; color: rgba(255,255,255,0.6); font-family: sans-serif; letter-spacing: 0.05em;">Click anywhere to resume</div>
+      </div>
+    </div>
 
     <!-- Opening scroll overlay -->
     <div id="scroll-overlay">
@@ -242,7 +247,7 @@
       z-index: 200;
     "></div>
 
-    <!-- Limbo Hall victory overlay -->
+    <!-- Purgatory Hall victory overlay -->
     <div id="limbo-victory" style="
       position: fixed;
       inset: 0;
@@ -257,9 +262,9 @@
       text-align: center;
       padding: 40px;
     ">
-      <h1 style="font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">LIMBO HALL CLEARED</h1>
-      <p style="font-size: 24px; margin: 0 0 16px 0;">2 / 2 Magic-Methane-Candles lit!</p>
-      <p style="font-size: 18px; color: #b8a04a; margin: 0 0 30px 0; max-width: 600px;">Lia survives Penny the Pink-Bow Beanie's patrol. The stairs to Purgatory Hall are still locked... for now.</p>
+      <h1 style="font-size: 48px; margin: 0 0 20px 0; letter-spacing: 4px;">PURGATORY HALL CLEARED</h1>
+      <p style="font-size: 24px; margin: 0 0 16px 0;">4 / 4 Magic-Methane-Candles lit!</p>
+      <p style="font-size: 18px; color: #b8a04a; margin: 0 0 30px 0; max-width: 600px;">Lia survives Penny the Pink-Bow Beanie's patrol of the 1st Floor. The stairs to Heaven Hall are still locked... for now.</p>
       <p style="font-size: 14px; color: #6b5d44; margin-top: 20px;">Press any key to continue exploring</p>
     </div>
 

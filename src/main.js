@@ -96,6 +96,101 @@ makeFloorCeilPair(5, 11, 2.5, -0.5);
 makeFloorCeilPair(5, 4, 2.5, -13);
 // This leaves a hole at x[0,5], z[-11,-6] for the stairs.
 
+// ─── BASEMENT FLOOR / GROUND FLOOR CEILING (Y=0) ──────────────────────────────
+const basementFloorMat = new THREE.MeshStandardMaterial({ color: 0x2a1a1a, roughness: 0.9, metalness: 0 });
+const basementCeilMat = new THREE.MeshStandardMaterial({ color: 0x1a0d2e, roughness: 0.95, metalness: 0 });
+
+function makeBasementFloorCeilPair(w, d, cx, cz) {
+  // Basement floor at y = -4
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(w, d), basementFloorMat);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(cx, -4, cz);
+  floor.receiveShadow = true;
+  scene.add(floor);
+
+  // Basement ceiling / Ground floor floor at y = 0
+  const ceil = new THREE.Mesh(new THREE.PlaneGeometry(w, d), basementCeilMat);
+  ceil.rotation.x = Math.PI / 2;
+  ceil.position.set(cx, 0, cz);
+  scene.add(ceil);
+}
+
+// Left side (Kitchen area): x[-15, 0], z[-15, 5] => w=15, d=20, cx=-7.5, cz=-5
+makeBasementFloorCeilPair(15, 20, -7.5, -5);
+// Front right (Lobby area): x[0, 5], z[-6, 5] => w=5, d=11, cx=2.5, cz=-0.5
+makeBasementFloorCeilPair(5, 11, 2.5, -0.5);
+// Back right (Living Room area): x[0, 5], z[-15, -11] => w=5, d=4, cx=2.5, cz=-13
+makeBasementFloorCeilPair(5, 4, 2.5, -13);
+// Stairs hole at x[0,5], z[-11,-6] left open
+
+// Basement floorboard seams
+const basementSeamMat = new THREE.MeshStandardMaterial({ color: 0x1a0a0a, roughness: 0.9, metalness: 0 });
+for (let i = 0; i < 12; i++) {
+  const seam = new THREE.Mesh(
+    new THREE.BoxGeometry(3 + Math.random() * 6, 0.02, 0.06 + Math.random() * 0.04),
+    basementSeamMat
+  );
+  seam.position.set((Math.random() - 0.5) * 26, -3.99, (Math.random() - 0.5) * 24);
+  seam.rotation.y = Math.random() < 0.5 ? 0 : Math.PI / 2;
+  scene.add(seam);
+}
+
+// ─── BASEMENT OUTER WALLS (Y=-2) ────────────────────────────────────────────────
+// North: x[-15,5], z=-15
+makeWall(0, -2, -15, 20, 4, 0.3);
+// East: x=5, z[-15,5]
+makeWall(5, -2, -5, 0.3, 4, 20);
+// West: x=-15, z[-15,5]
+makeWall(-15, -2, -5, 0.3, 4, 20);
+// South: x[-15,5], z=5
+makeWall(-5, -2, 5, 20, 4, 0.3);
+
+// ─── BASEMENT INTERIOR WALLS (Y=-2) ─────────────────────────────────────────────
+// Furnace Room (NW): x[-15,-5], z[-15,-5]
+makeWall(-10, -2, -5, 10, 4, 0.3);       // South wall of furnace room
+makeWall(-10, -2, -15, 10, 4, 0.3);      // North wall (outer)
+makeWall(-5, -2, -10, 0.3, 4, 10);       // East wall (shared with workshop)
+makeWall(-15, -2, -10, 0.3, 4, 10);      // West wall (outer)
+
+// Workshop (NE): x[-5,5], z[-15,-5]
+makeWall(-5, -2, -5, 0.3, 4, 10);        // West wall (shared with furnace)
+makeWall(0, -2, -15, 10, 4, 0.3);        // North wall (outer)
+makeWall(5, -2, -10, 0.3, 4, 10);        // East wall (outer)
+makeWall(0, -2, -5, 10, 4, 0.3);         // South wall (shared with Scoville Lab)
+
+// Scoville Lab (SE, hidden): x[-5,5], z[-5,5] - SECRET ROOM
+// Only accessible through a hidden passage or later unlock
+makeWall(0, -2, 5, 10, 4, 0.3);          // South wall (outer)
+makeWall(5, -2, 0, 0.3, 4, 10);          // East wall (outer)
+makeWall(-5, -2, 0, 0.3, 4, 10);         // West wall (shared with storage)
+
+// Storage/Lab Antechamber (SW): x[-15,-5], z[-5,5]
+makeWall(-10, -2, 5, 10, 4, 0.3);        // South wall (outer)
+makeWall(-15, -2, 0, 0.3, 4, 10);        // West wall (outer)
+makeWall(-5, -2, 0, 0.3, 4, 10);         // East wall (shared with Scoville Lab)
+
+// Doorways (lintels)
+makeWall(-10, -0.5, -5, 0.3, 1, 2);      // Furnace <-> Workshop doorway
+makeWall(-10, -0.5, 0, 0.3, 1, 2);       // Storage <-> Scoville doorway (hidden)
+makeWall(0, -0.5, -5, 2, 1, 0.3);        // Workshop <-> Scoville doorway
+
+// ─── BASEMENT WAINSCOTING (y=-1.5) ──────────────────────────────────────────────
+function placeBasementWainscot(x, y, z, w, d) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, 0.06, d),
+    new THREE.MeshStandardMaterial({ color: 0x3d2817, roughness: 0.85, metalness: 0 })
+  );
+  mesh.position.set(x, y, z);
+  scene.add(mesh);
+}
+
+placeBasementWainscot(0, -1.5, -14.82, 20, 0.08);  // North wall interior
+placeBasementWainscot(4.82, -1.5, -5, 0.08, 20);   // East wall interior
+placeBasementWainscot(-14.82, -1.5, -5, 0.08, 20); // West wall interior
+placeBasementWainscot(-5, -1.5, 4.82, 10, 0.08);   // South furnace/storage interior
+placeBasementWainscot(0, -1.5, -4.82, 10, 0.08);   // Workshop/Scoville divider
+placeBasementWainscot(-4.82, -1.5, 0, 0.08, 10);   // Storage/Scoville divider
+
 // ─── Wall helpers ─────────────────────────────────────────────────────────────
 //
 // Room layout (centered at origin, walls at y=0..4):
@@ -237,6 +332,45 @@ scene.add(dormMoon);
 const libraryLight = new THREE.PointLight(0xff8847, 0.8, 8);
 libraryLight.position.set(0, 7, -13);
 scene.add(libraryLight);
+
+// ─── BASEMENT LIGHTING (cooler ambient per Locked Standard) ─────────────────────
+// Furnace room - warm orange glow from furnace
+const furnaceLight = new THREE.PointLight(0xff6600, 1.2, 10);
+furnaceLight.position.set(-10, -3, -10);
+scene.add(furnaceLight);
+
+// Workshop - sickly green glow (experimental residue)
+const workshopLight = new THREE.PointLight(0x7fc972, 0.6, 8);
+workshopLight.position.set(0, -3, -10);
+scene.add(workshopLight);
+
+// Scoville Lab - hidden, very dim purple glow
+const scovilleLight = new THREE.PointLight(0x3a1a4a, 0.4, 6);
+scovilleLight.position.set(0, -3, 0);
+scene.add(scovilleLight);
+
+// Storage/Antechamber - dim cool moonlight seep
+const storageLight = new THREE.PointLight(0x4a5a7a, 0.5, 8);
+storageLight.position.set(-10, -3, 0);
+scene.add(storageLight);
+
+// ─── 1ST FLOOR PROPS ────────────────────────────────────────────────────────────
+// Basement key in Library (on a bookshelf) - glows to attract attention
+const keyMat = new THREE.MeshStandardMaterial({
+  color: 0xffcc00, emissive: 0xffcc00, emissiveIntensity: 0.8,
+  roughness: 0.3, metalness: 0.8
+});
+let basementKey = new THREE.Mesh(
+  new THREE.BoxGeometry(0.3, 0.1, 0.15),
+  keyMat
+);
+basementKey.position.set(0, 5.1, -13.5); // Library at y=4 floor + 1.1
+basementKey.userData = { isKey: true, collected: false };
+scene.add(basementKey);
+
+// Key glow pulse
+basementKey.userData.glow = new THREE.PointLight(0xffcc00, 0.3, 2);
+basementKey.add(basementKey.userData.glow);
 
 // ─── WAINSCOTING (y=2.5 interior-face strips) ────────────────────────────────
 // addWainscot uses Object.assign to set position — need to do it properly:
@@ -786,6 +920,12 @@ const candles = [
   makeCandle(0, 4.09, -13),
   // Playroom candle (on the floor)
   makeCandle(-10, 4.09, 0),
+  
+  // Basement Candles (y = -4 floor, so base at -3.91)
+  // Furnace room candle (on a crate near furnace)
+  makeCandle(-10, -3.91, -10),
+  // Scoville Lab candle (on a workbench)
+  makeCandle(0, -3.91, 0),
 ];
 
 // ─── ENEMIES & LOGIC ─────────────────────────────────────────────────────────
@@ -1205,10 +1345,36 @@ const josephWaypoints = [
   new THREE.Vector3(0,    0, -6),
 ];
 
+// Basement Fart-Cloud Kids (y = -4 for basement floor)
+const basilWaypoints = [
+  new THREE.Vector3(-10, -4, -10), // Furnace room
+  new THREE.Vector3(-12, -4, -12),
+  new THREE.Vector3(-8,  -4, -8),
+  new THREE.Vector3(-10, -4, -5),
+];
+
+const coraWaypoints = [
+  new THREE.Vector3(0,  -4, -10), // Workshop
+  new THREE.Vector3(-3, -4, -12),
+  new THREE.Vector3(3,  -4, -8),
+  new THREE.Vector3(0,  -4, -5),
+];
+
+const daisyWaypoints = [
+  new THREE.Vector3(0,  -4, 0),   // Scoville Lab / Storage area
+  new THREE.Vector3(-3, -4, 2),
+  new THREE.Vector3(3,  -4, -2),
+  new THREE.Vector3(0,  -4, 3),
+];
+
 const enemies = [
   new Enemy('Penny', createGhostBoyVisuals(false), pennyWaypoints, false, 1.2),
   new Enemy('Tommy', createGhostBoyVisuals(true), tommyWaypoints, false, 1.3),
-  new Enemy('Joseph', createSkeletonVisuals(), josephWaypoints, true, 1.0)
+  new Enemy('Joseph', createSkeletonVisuals(), josephWaypoints, true, 1.0),
+  // Basement kids (Fart-Cloud Kids - fastest, easiest to stun)
+  new Enemy('Basil', createGhostBoyVisuals(true), basilWaypoints, false, 1.5),
+  new Enemy('Cora', createGhostBoyVisuals(false), coraWaypoints, false, 1.5),
+  new Enemy('Daisy', createGhostBoyVisuals(false), daisyWaypoints, false, 1.5),
 ];
 
 const _pennyToTarget = new THREE.Vector3();
@@ -1311,8 +1477,21 @@ function tryInteract() {
   const pos = isTouchDevice ? playerObj.position : camera.position;
   camera.getWorldDirection(_fwd);
 
-  // Only interactable now: unlit candles (require flashlight ON)
+  // Only interactable now: unlit candles (require flashlight ON) + basement key
   if (!flashlightOn) return;
+
+  // Check for basement key first (doesn't require flashlight, but needs interact)
+  if (basementKey && !basementKey.userData.collected) {
+    _toCandle.subVectors(basementKey.position, pos);
+    const keyDist = _toCandle.length();
+    if (keyDist < 2.5) {
+      _toCandle.normalize();
+      if (_fwd.dot(_toCandle) > 0.5) {
+        collectBasementKey();
+        return;
+      }
+    }
+  }
 
   let bestCandle = null;
   let bestDist = Infinity;
@@ -1334,6 +1513,24 @@ function tryInteract() {
   candleCount++;
   hudCandles.textContent = `Candles lit: ${candleCount} / 4`;
   checkLimboWin();
+}
+
+function collectBasementKey() {
+  basementKey.userData.collected = true;
+  scene.remove(basementKey);
+  basementKey = null;
+  // Show key collected notification
+  const hud = document.getElementById('hud');
+  const msg = document.createElement('div');
+  msg.id = 'key-msg';
+  msg.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);color:#ffcc00;font-family:Georgia,serif;font-size:18px;text-shadow:0 0 8px #cc0033;z-index:20;pointer-events:none;';
+  msg.textContent = '🗝️ Basement Key Collected! The stairs down are now unlocked.';
+  document.body.appendChild(msg);
+  setTimeout(() => msg.remove(), 4000);
+  // Remove the stairs down blocker
+  wallColliders.pop(); // Remove the stairs down pit collider (last added)
+  // Remove red railing
+  scene.remove(redRailing);
 }
 
 // ─── Reusable vectors ─────────────────────────────────────────────────────────
